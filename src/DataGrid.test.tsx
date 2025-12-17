@@ -77,9 +77,7 @@ describe('DataGrid', () => {
         },
       ];
 
-      const { container } = render(
-        <DataGrid data={testData} columns={columnsWithClass} rowKey="id" />
-      );
+      const { container } = render(<DataGrid data={testData} columns={columnsWithClass} rowKey="id" />);
 
       const activeCells = container.querySelectorAll('.status-active');
       expect(activeCells.length).toBe(2); // Alpha and Gamma are active
@@ -215,13 +213,7 @@ describe('DataGrid', () => {
 
     it('respects filterFields', () => {
       render(
-        <DataGrid
-          data={testData}
-          columns={columns}
-          rowKey="id"
-          showFilter={true}
-          filterFields={['status']}
-        />
+        <DataGrid data={testData} columns={columns} rowKey="id" showFilter={true} filterFields={['status']} />
       );
 
       const filterInput = screen.getByRole('textbox');
@@ -239,13 +231,7 @@ describe('DataGrid', () => {
 
     it('shows empty message when filter matches nothing', () => {
       render(
-        <DataGrid
-          data={testData}
-          columns={columns}
-          rowKey="id"
-          showFilter={true}
-          emptyMessage="No results"
-        />
+        <DataGrid data={testData} columns={columns} rowKey="id" showFilter={true} emptyMessage="No results" />
       );
 
       const filterInput = screen.getByRole('textbox');
@@ -318,9 +304,7 @@ describe('DataGrid', () => {
 
   describe('compact mode', () => {
     it('applies compact class when compact is true', () => {
-      const { container } = render(
-        <DataGrid data={testData} columns={columns} rowKey="id" compact={true} />
-      );
+      const { container } = render(<DataGrid data={testData} columns={columns} rowKey="id" compact={true} />);
 
       expect(container.querySelector('.askturret-grid.compact')).toBeInTheDocument();
     });

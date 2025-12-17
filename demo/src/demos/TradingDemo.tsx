@@ -120,9 +120,7 @@ function updatePosition(pos: Position): Position {
   const newPrice = Math.max(0.01, pos.currentPrice + priceChange);
   const marketValue = pos.side === 'long' ? pos.quantity * newPrice : -pos.quantity * newPrice;
   const unrealizedPnl =
-    pos.side === 'long'
-      ? (newPrice - pos.avgPrice) * pos.quantity
-      : (pos.avgPrice - newPrice) * pos.quantity;
+    pos.side === 'long' ? (newPrice - pos.avgPrice) * pos.quantity : (pos.avgPrice - newPrice) * pos.quantity;
   const unrealizedPnlPercent = (unrealizedPnl / (pos.avgPrice * pos.quantity)) * 100;
 
   return {
@@ -252,8 +250,7 @@ export function TradingDemo() {
             <span className="stat">
               P&L:{' '}
               <span className={`stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`}>
-                {totalPnl >= 0 ? '+' : ''}$
-                {totalPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
             </span>
           </div>

@@ -138,11 +138,7 @@ export function OrderBookDemo() {
           Levels
         </label>
         <label>
-          <input
-            type="checkbox"
-            checked={showSpread}
-            onChange={(e) => setShowSpread(e.target.checked)}
-          />{' '}
+          <input type="checkbox" checked={showSpread} onChange={(e) => setShowSpread(e.target.checked)} />{' '}
           Spread
         </label>
         <label>
@@ -162,8 +158,7 @@ export function OrderBookDemo() {
           Orders
         </label>
         <label>
-          <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} />{' '}
-          Compact
+          <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} /> Compact
         </label>
       </div>
 
@@ -187,8 +182,7 @@ export function OrderBookDemo() {
           <div className="orderbook-selection">
             Selected:{' '}
             <span className={selectedPrice.side}>
-              {selectedPrice.side.toUpperCase()} @ $
-              {selectedPrice.price.toFixed(currentSymbol.priceDecimals)}
+              {selectedPrice.side.toUpperCase()} @ ${selectedPrice.price.toFixed(currentSymbol.priceDecimals)}
             </span>
           </div>
         )}
@@ -196,9 +190,7 @@ export function OrderBookDemo() {
         <div className="orderbook-stats">
           <div className="stat">
             <span className="stat-label">Last Price</span>
-            <span className="stat-value">
-              ${orderBook.lastPrice?.toFixed(currentSymbol.priceDecimals)}
-            </span>
+            <span className="stat-value">${orderBook.lastPrice?.toFixed(currentSymbol.priceDecimals)}</span>
           </div>
           <div className="stat">
             <span className="stat-label">Best Bid</span>

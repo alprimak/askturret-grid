@@ -93,9 +93,7 @@ const columns: ColumnDef<User>[] = [
         pending: '#ffc107',
       };
       return (
-        <span style={{ color: colors[status] }}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </span>
+        <span style={{ color: colors[status] }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
       );
     },
   },

@@ -185,9 +185,7 @@ export function DataGrid<T extends object>({
     // Convert row-major data to column-major for GridCore
     // Always send ALL columns so sorting works on any column
     const allFields = columns.map((c) => String(c.field));
-    const columnData: unknown[][] = allFields.map((field) =>
-      data.map((row) => getNestedValue(row, field))
-    );
+    const columnData: unknown[][] = allFields.map((field) => data.map((row) => getNestedValue(row, field)));
 
     gridCoreRef.current.setData(columnData);
   }, [data, columns, filterFields, wasmCoreReady]);

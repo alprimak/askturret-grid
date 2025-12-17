@@ -266,11 +266,7 @@ export function sortMultiColumn<T>(columns: T[][], directions: SortDirection[]):
 /**
  * Filter values by search string
  */
-export function filterValues<T>(
-  columns: T[][],
-  search: string,
-  mode: FilterMode = 'contains'
-): number[] {
+export function filterValues<T>(columns: T[][], search: string, mode: FilterMode = 'contains'): number[] {
   if (wasmModule) {
     const result = wasmModule.filter_values(columns, search, filterModeToNumber(mode));
     const indices = Array.from(result.indices);
@@ -283,11 +279,7 @@ export function filterValues<T>(
 /**
  * Filter numeric values by range
  */
-export function filterRange(
-  values: number[],
-  min: number = -Infinity,
-  max: number = Infinity
-): number[] {
+export function filterRange(values: number[], min: number = -Infinity, max: number = Infinity): number[] {
   if (wasmModule) {
     const result = wasmModule.filter_range(values, min, max);
     const indices = Array.from(result.indices);
@@ -307,12 +299,7 @@ export function filterAndSort<T>(
   direction: SortDirection = 'asc'
 ): number[] {
   if (wasmModule) {
-    const result = wasmModule.filter_and_sort(
-      sortVals,
-      filterColumns,
-      search,
-      directionToNumber(direction)
-    );
+    const result = wasmModule.filter_and_sort(sortVals, filterColumns, search, directionToNumber(direction));
     const indices = Array.from(result.indices);
     result.free();
     return indices;

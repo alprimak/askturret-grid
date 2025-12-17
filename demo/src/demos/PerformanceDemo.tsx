@@ -107,11 +107,7 @@ const columns: ColumnDef<TestRow>[] = [
     formatter: (v) => {
       const status = v as string;
       const className =
-        status === 'active'
-          ? 'status-active'
-          : status === 'pending'
-            ? 'status-pending'
-            : 'status-closed';
+        status === 'active' ? 'status-active' : status === 'pending' ? 'status-pending' : 'status-closed';
       return <span className={className}>{status}</span>;
     },
   },

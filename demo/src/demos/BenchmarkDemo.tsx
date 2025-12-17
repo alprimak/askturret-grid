@@ -265,8 +265,8 @@ export function BenchmarkDemo() {
     <div className="demo-section">
       <h2>WASM Performance Benchmarks</h2>
       <p>
-        Comparing sort, linear scan filter, and <strong>trigram-indexed filter</strong>. Index
-        allows O(1) lookup instead of O(n) scan.
+        Comparing sort, linear scan filter, and <strong>trigram-indexed filter</strong>. Index allows O(1)
+        lookup instead of O(n) scan.
       </p>
 
       <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>

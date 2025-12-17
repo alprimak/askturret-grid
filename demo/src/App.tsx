@@ -7,14 +7,7 @@ import { TopMoversDemo } from './demos/TopMoversDemo';
 import { ThemingDemo } from './demos/ThemingDemo';
 import { BenchmarkDemo } from './demos/BenchmarkDemo';
 
-type DemoTab =
-  | 'basic'
-  | 'performance'
-  | 'trading'
-  | 'orderbook'
-  | 'topmovers'
-  | 'theming'
-  | 'benchmark';
+type DemoTab = 'basic' | 'performance' | 'trading' | 'orderbook' | 'topmovers' | 'theming' | 'benchmark';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<DemoTab>('basic');

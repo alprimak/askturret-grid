@@ -114,10 +114,7 @@ export function TopMoversDemo() {
       <div className="demo-options">
         <label>
           <span className="control-label">Ranking Update:</span>
-          <select
-            value={updateInterval}
-            onChange={(e) => setUpdateInterval(Number(e.target.value))}
-          >
+          <select value={updateInterval} onChange={(e) => setUpdateInterval(Number(e.target.value))}>
             <option value={2000}>2s</option>
             <option value={5000}>5s</option>
             <option value={10000}>10s</option>
@@ -127,10 +124,7 @@ export function TopMoversDemo() {
 
         <label>
           <span className="control-label">Data Update:</span>
-          <select
-            value={dataUpdateInterval}
-            onChange={(e) => setDataUpdateInterval(Number(e.target.value))}
-          >
+          <select value={dataUpdateInterval} onChange={(e) => setDataUpdateInterval(Number(e.target.value))}>
             <option value={100}>100ms</option>
             <option value={250}>250ms</option>
             <option value={500}>500ms</option>
@@ -160,26 +154,16 @@ export function TopMoversDemo() {
         </label>
 
         <label>
-          <input
-            type="checkbox"
-            checked={showPrice}
-            onChange={(e) => setShowPrice(e.target.checked)}
-          />{' '}
-          Price
+          <input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} /> Price
         </label>
 
         <label>
-          <input
-            type="checkbox"
-            checked={showChange}
-            onChange={(e) => setShowChange(e.target.checked)}
-          />{' '}
+          <input type="checkbox" checked={showChange} onChange={(e) => setShowChange(e.target.checked)} />{' '}
           Change
         </label>
 
         <label>
-          <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} />{' '}
-          Compact
+          <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} /> Compact
         </label>
       </div>
 
@@ -207,12 +191,12 @@ export function TopMoversDemo() {
 
         <div className="topmovers-info">
           <p>
-            <strong>How it works:</strong> Data updates every {dataUpdateInterval}ms, but rankings
-            only refresh every {updateInterval / 1000}s.
+            <strong>How it works:</strong> Data updates every {dataUpdateInterval}ms, but rankings only
+            refresh every {updateInterval / 1000}s.
           </p>
           <p>
-            This prevents the jarring experience of items jumping around constantly while still
-            showing current market leaders.
+            This prevents the jarring experience of items jumping around constantly while still showing
+            current market leaders.
           </p>
         </div>
       </div>

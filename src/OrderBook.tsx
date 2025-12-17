@@ -196,27 +196,19 @@ export function OrderBook({
         )}
         {isBid ? (
           <>
-            {showOrderCount && (
-              <span className="askturret-orderbook-orders">{level.orders ?? '—'}</span>
-            )}
+            {showOrderCount && <span className="askturret-orderbook-orders">{level.orders ?? '—'}</span>}
             <span className="askturret-orderbook-qty">
               {formatQuantity(level.quantity, quantityDecimals)}
             </span>
-            <span className="askturret-orderbook-price bid">
-              {formatPrice(level.price, priceDecimals)}
-            </span>
+            <span className="askturret-orderbook-price bid">{formatPrice(level.price, priceDecimals)}</span>
           </>
         ) : (
           <>
-            <span className="askturret-orderbook-price ask">
-              {formatPrice(level.price, priceDecimals)}
-            </span>
+            <span className="askturret-orderbook-price ask">{formatPrice(level.price, priceDecimals)}</span>
             <span className="askturret-orderbook-qty">
               {formatQuantity(level.quantity, quantityDecimals)}
             </span>
-            {showOrderCount && (
-              <span className="askturret-orderbook-orders">{level.orders ?? '—'}</span>
-            )}
+            {showOrderCount && <span className="askturret-orderbook-orders">{level.orders ?? '—'}</span>}
           </>
         )}
       </div>

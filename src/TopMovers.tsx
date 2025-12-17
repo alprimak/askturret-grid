@@ -179,9 +179,7 @@ export function TopMovers({
         </span>
         <span className="askturret-topmovers-symbol">{item.symbol}</span>
         {showPrice && (
-          <span className="askturret-topmovers-price">
-            {formatPrice(item.price, priceDecimals)}
-          </span>
+          <span className="askturret-topmovers-price">{formatPrice(item.price, priceDecimals)}</span>
         )}
         {showChange && (
           <span className={`askturret-topmovers-change ${type}`}>

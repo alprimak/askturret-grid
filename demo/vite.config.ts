@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      'askturret-grid-core': path.resolve(__dirname, '../../grid-core/pkg/askturret_grid_core.js'),
+      // Use stub in standalone mode - WASM has pure JS fallback
+      'askturret-grid-core': path.resolve(__dirname, '../src/wasm/stub/askturret_grid_core.js'),
     },
   },
   optimizeDeps: {

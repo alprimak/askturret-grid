@@ -33,10 +33,7 @@ export function formatQuantity(value: number, decimals: number = 0): string {
 /**
  * Format a timestamp to time string.
  */
-export function formatTime(
-  timestamp: number,
-  format: 'HH:mm:ss' | 'HH:mm:ss.SSS' = 'HH:mm:ss'
-): string {
+export function formatTime(timestamp: number, format: 'HH:mm:ss' | 'HH:mm:ss.SSS' = 'HH:mm:ss'): string {
   const date = new Date(timestamp);
   const hours = date.getHours().toString().padStart(2, '0');
   const minutes = date.getMinutes().toString().padStart(2, '0');
@@ -53,10 +50,7 @@ export function formatTime(
 /**
  * Format P&L value with sign and color class.
  */
-export function formatPnL(
-  value: number,
-  decimals: number = 2
-): { text: string; className: string } {
+export function formatPnL(value: number, decimals: number = 2): { text: string; className: string } {
   if (value === null || value === undefined || isNaN(value)) {
     return { text: '—', className: '' };
   }
@@ -75,10 +69,7 @@ export function formatPnL(
 /**
  * Format percentage with sign.
  */
-export function formatPercent(
-  value: number,
-  decimals: number = 2
-): { text: string; className: string } {
+export function formatPercent(value: number, decimals: number = 2): { text: string; className: string } {
   if (value === null || value === undefined || isNaN(value)) {
     return { text: '—', className: '' };
   }
