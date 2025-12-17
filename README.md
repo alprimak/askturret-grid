@@ -23,7 +23,7 @@ Traditional grids face a tradeoff:
 
 We chose a third path: **Rust compiled to WebAssembly** running in your browser.
 
-The result? AG Grid server-side row model performance without the server.
+The result? Server-side grid performance without the server.
 
 ```
 1,000,000 rows × 6 columns
@@ -176,19 +176,18 @@ The grid uses CSS variables for theming:
 }
 ```
 
-## vs AG Grid
+## vs Traditional Grids
 
-| Feature | AG Grid (Server-Side) | @askturret/grid |
-|---------|----------------------|-----------------|
-| 100k row sort | ~200ms + network | 12ms |
+| Feature | Server-Side Grids | @askturret/grid |
+|---------|-------------------|-----------------|
+| 100k row sort | ~200ms + network latency | 12ms client-side |
 | Infrastructure | Backend required | None |
-| Flash highlights | Basic | Adaptive (auto-degrades) |
-| Order book | Separate component | Built-in |
-| Time & Sales | Separate component | Built-in |
-| Multi-window sync | Manual | BroadcastChannel built-in |
-| Zero-config virtualization | No | Yes |
-| Bundle size | 200kb+ | 45kb |
-| License | Commercial ($) | MIT |
+| Flash highlights | Basic or none | Adaptive (auto-degrades) |
+| Trading components | Separate packages | Built-in |
+| Multi-window sync | Manual implementation | BroadcastChannel built-in |
+| Virtualization | Configuration required | Zero-config (automatic) |
+| Bundle size | 150-300kb | ~45kb |
+| License | Often commercial | MIT |
 
 ## Roadmap
 
