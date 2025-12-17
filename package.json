@@ -1,0 +1,70 @@
+{
+  "name": "@askturret/grid",
+  "version": "0.1.0",
+  "description": "High-performance React data grid with Rust/WASM. Server-side performance, zero server required.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./src/styles/grid.css": "./src/styles/grid.css",
+    "./src/styles/orderbook.css": "./src/styles/orderbook.css",
+    "./src/styles/topmovers.css": "./src/styles/topmovers.css"
+  },
+  "files": [
+    "dist",
+    "src/styles"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "//build": "NOTE: When adding new CSS files, update both the cat command below AND exports in package.json",
+    "build": "tsc && cat src/styles/grid.css src/styles/orderbook.css src/styles/topmovers.css > dist/styles.css",
+    "dev": "tsc --watch",
+    "demo": "cd demo && npm run dev",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.13.13"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "jsdom": "^25.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "typescript": "^5.3.0",
+    "vitest": "^2.1.0"
+  },
+  "keywords": [
+    "react",
+    "grid",
+    "datagrid",
+    "table",
+    "virtualization",
+    "trading",
+    "wasm",
+    "webassembly",
+    "performance"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alprimak/askturret-grid"
+  },
+  "homepage": "https://grid.askturret.com"
+}

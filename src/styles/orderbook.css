@@ -1,0 +1,220 @@
+/**
+ * OrderBook component styles
+ */
+
+.askturret-orderbook {
+  display: flex;
+  flex-direction: column;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--grid-font-size, 12px);
+  color: var(--grid-text, #e4e4e7);
+  background: var(--grid-bg, #0a0a0f);
+  border: 1px solid var(--grid-border, #2a2a3a);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Header */
+.askturret-orderbook-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--grid-surface, #12121a);
+  border-bottom: 1px solid var(--grid-border, #2a2a3a);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--grid-text-muted, #71717a);
+  font-size: 10px;
+}
+
+.askturret-orderbook-header-side {
+  flex: 1;
+}
+
+.askturret-orderbook-header-side.bid {
+  text-align: left;
+  color: var(--grid-bid, #22c55e);
+}
+
+.askturret-orderbook-header-side.ask {
+  text-align: right;
+  color: var(--grid-ask, #ef4444);
+}
+
+.askturret-orderbook-header-price {
+  flex: 1;
+  text-align: center;
+}
+
+/* Level rows */
+.askturret-orderbook-asks,
+.askturret-orderbook-bids {
+  display: flex;
+  flex-direction: column;
+}
+
+.askturret-orderbook-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 4px 12px;
+  transition: background-color 150ms;
+}
+
+.askturret-orderbook-row.clickable {
+  cursor: pointer;
+}
+
+.askturret-orderbook-row.clickable:hover {
+  background: var(--grid-row-hover, rgba(18, 18, 26, 0.5));
+}
+
+.askturret-orderbook-row.bid {
+  justify-content: flex-end;
+}
+
+.askturret-orderbook-row.ask {
+  justify-content: flex-start;
+}
+
+/* Depth bars */
+.askturret-orderbook-depth-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  transition: width 150ms ease-out;
+}
+
+.askturret-orderbook-depth-bar.bid {
+  background: var(--grid-depth-bar-bid, rgba(34, 197, 94, 0.3));
+  right: 0;
+}
+
+.askturret-orderbook-depth-bar.ask {
+  background: var(--grid-depth-bar-ask, rgba(239, 68, 68, 0.3));
+  left: 0;
+}
+
+/* Price and quantity */
+.askturret-orderbook-price,
+.askturret-orderbook-qty,
+.askturret-orderbook-orders {
+  position: relative;
+  z-index: 1;
+  min-width: 70px;
+}
+
+.askturret-orderbook-price {
+  font-weight: 500;
+}
+
+.askturret-orderbook-price.bid {
+  color: var(--grid-bid, #22c55e);
+  text-align: right;
+}
+
+.askturret-orderbook-price.ask {
+  color: var(--grid-ask, #ef4444);
+  text-align: left;
+}
+
+.askturret-orderbook-qty {
+  color: var(--grid-text, #e4e4e7);
+  min-width: 80px;
+}
+
+.askturret-orderbook-row.bid .askturret-orderbook-qty {
+  text-align: right;
+  margin-right: 12px;
+}
+
+.askturret-orderbook-row.ask .askturret-orderbook-qty {
+  text-align: left;
+  margin-left: 12px;
+}
+
+.askturret-orderbook-orders {
+  color: var(--grid-text-muted, #71717a);
+  font-size: 10px;
+  min-width: 30px;
+}
+
+.askturret-orderbook-row.bid .askturret-orderbook-orders {
+  text-align: left;
+  margin-right: 8px;
+}
+
+.askturret-orderbook-row.ask .askturret-orderbook-orders {
+  text-align: right;
+  margin-left: 8px;
+}
+
+/* Spread indicator */
+.askturret-orderbook-spread {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--grid-spread-bg, rgba(59, 130, 246, 0.15));
+  border-top: 1px solid var(--grid-border-alpha, rgba(42, 42, 58, 0.3));
+  border-bottom: 1px solid var(--grid-border-alpha, rgba(42, 42, 58, 0.3));
+}
+
+.askturret-orderbook-spread-label {
+  color: var(--grid-text-muted, #71717a);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10px;
+}
+
+.askturret-orderbook-spread-value {
+  color: var(--grid-accent, #3b82f6);
+  font-weight: 500;
+}
+
+/* Flash animations */
+.askturret-orderbook-row.flash-up {
+  animation: orderbook-flash-up var(--grid-flash-duration, 800ms) ease-out;
+}
+
+.askturret-orderbook-row.flash-down {
+  animation: orderbook-flash-down var(--grid-flash-duration, 800ms) ease-out;
+}
+
+@keyframes orderbook-flash-up {
+  0% {
+    background-color: var(--grid-flash-up, rgba(34, 197, 94, 0.4));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes orderbook-flash-down {
+  0% {
+    background-color: var(--grid-flash-down, rgba(239, 68, 68, 0.4));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Compact mode */
+.askturret-orderbook.compact .askturret-orderbook-header {
+  padding: 4px 8px;
+}
+
+.askturret-orderbook.compact .askturret-orderbook-row {
+  padding: 2px 8px;
+}
+
+.askturret-orderbook.compact .askturret-orderbook-spread {
+  padding: 4px 8px;
+}
+
+.askturret-orderbook.compact .askturret-orderbook-price,
+.askturret-orderbook.compact .askturret-orderbook-qty {
+  min-width: 60px;
+}

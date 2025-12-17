@@ -1,0 +1,283 @@
+/**
+ * @askturret/grid - Default theme
+ *
+ * Override these CSS variables to customize the grid appearance.
+ * Import this file or define your own variables before using the grid.
+ */
+
+:root {
+  /* Background colors */
+  --grid-bg: #0a0a0f;
+  --grid-surface: #12121a;
+
+  /* Border colors */
+  --grid-border: #2a2a3a;
+  --grid-border-alpha: rgba(42, 42, 58, 0.3);
+
+  /* Text colors */
+  --grid-text: #e4e4e7;
+  --grid-text-muted: #71717a;
+
+  /* Accent color */
+  --grid-accent: #3b82f6;
+
+  /* Flash highlight colors */
+  --grid-flash-up: rgba(34, 197, 94, 0.4);
+  --grid-flash-down: rgba(239, 68, 68, 0.4);
+
+  /* Trading colors */
+  --grid-bid: #22c55e;
+  --grid-ask: #ef4444;
+  --grid-bid-bg: rgba(34, 197, 94, 0.1);
+  --grid-ask-bg: rgba(239, 68, 68, 0.1);
+  --grid-depth-bar-bid: rgba(34, 197, 94, 0.3);
+  --grid-depth-bar-ask: rgba(239, 68, 68, 0.3);
+  --grid-spread-bg: rgba(59, 130, 246, 0.15);
+  --grid-position-indicator: #f59e0b;
+  --grid-large-trade: #a855f7;
+
+  /* Row hover */
+  --grid-row-hover: rgba(18, 18, 26, 0.5);
+
+  /* Sizing */
+  --grid-row-height: 36px;
+  --grid-row-height-compact: 28px;
+  --grid-header-height: 36px;
+  --grid-font-size: 12px;
+
+  /* Timing */
+  --grid-flash-duration: 800ms;
+  --grid-transition-speed: 150ms;
+}
+
+/* Base grid container */
+.askturret-grid {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--grid-font-size);
+  color: var(--grid-text);
+  background: var(--grid-bg);
+}
+
+/* Filter input */
+.askturret-grid-filter {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grid-border);
+  background: var(--grid-surface);
+}
+
+.askturret-grid-filter input {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: var(--grid-font-size);
+  font-family: inherit;
+  color: var(--grid-text);
+  background: var(--grid-bg);
+  border: 1px solid var(--grid-border);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color var(--grid-transition-speed);
+}
+
+.askturret-grid-filter input:focus {
+  border-color: var(--grid-accent);
+}
+
+.askturret-grid-filter input::placeholder {
+  color: var(--grid-text-muted);
+}
+
+/* Table wrapper */
+.askturret-grid-body {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Standard table mode */
+.askturret-grid table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.askturret-grid thead {
+  background: var(--grid-surface);
+}
+
+.askturret-grid thead.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.askturret-grid th {
+  padding: 8px 12px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--grid-text-muted);
+  font-weight: normal;
+  user-select: none;
+}
+
+.askturret-grid th.sortable {
+  cursor: pointer;
+  transition: color var(--grid-transition-speed);
+}
+
+.askturret-grid th.sortable:hover {
+  color: var(--grid-text);
+}
+
+.askturret-grid th.align-right {
+  text-align: right;
+}
+
+.askturret-grid th.align-center {
+  text-align: center;
+}
+
+.askturret-grid .sort-indicator {
+  color: var(--grid-accent);
+  margin-left: 4px;
+}
+
+.askturret-grid td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grid-border-alpha);
+  transition: background-color var(--grid-transition-speed);
+}
+
+.askturret-grid td.align-right {
+  text-align: right;
+}
+
+.askturret-grid td.align-center {
+  text-align: center;
+}
+
+.askturret-grid tr {
+  transition: background-color var(--grid-transition-speed);
+}
+
+.askturret-grid tr:hover {
+  background: var(--grid-row-hover);
+}
+
+.askturret-grid tr.clickable {
+  cursor: pointer;
+}
+
+/* Compact mode */
+.askturret-grid.compact th,
+.askturret-grid.compact td {
+  padding: 4px 8px;
+}
+
+/* Empty state */
+.askturret-grid-empty {
+  padding: 32px 12px;
+  text-align: center;
+  color: var(--grid-text-muted);
+}
+
+/* Virtualized mode */
+.askturret-grid-virtual {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.askturret-grid-virtual-header {
+  display: flex;
+  background: var(--grid-surface);
+  border-bottom: 1px solid var(--grid-border);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--grid-text-muted);
+}
+
+.askturret-grid-virtual-header-cell {
+  flex: 1 1 0%;
+  padding: 8px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.askturret-grid-virtual-header-cell.sortable {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+
+.askturret-grid-virtual-header-cell.sortable:hover {
+  color: var(--grid-text);
+}
+
+.askturret-grid-virtual-body {
+  flex: 1;
+  overflow: auto;
+}
+
+.askturret-grid-virtual-row {
+  display: flex;
+  border-bottom: 1px solid var(--grid-border-alpha);
+  transition: background-color var(--grid-transition-speed);
+}
+
+.askturret-grid-virtual-row:hover {
+  background: var(--grid-row-hover);
+}
+
+.askturret-grid-virtual-row.clickable {
+  cursor: pointer;
+}
+
+.askturret-grid-virtual-cell {
+  flex: 1 1 0%;
+  padding: 8px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact mode for virtual */
+.askturret-grid.compact .askturret-grid-virtual-header-cell,
+.askturret-grid.compact .askturret-grid-virtual-cell {
+  padding: 4px 8px;
+}
+
+/* Flash animations */
+.askturret-grid .flash-up {
+  animation: grid-flash-up var(--grid-flash-duration) ease-out;
+}
+
+.askturret-grid .flash-down {
+  animation: grid-flash-down var(--grid-flash-duration) ease-out;
+}
+
+@keyframes grid-flash-up {
+  0% {
+    background-color: var(--grid-flash-up);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes grid-flash-down {
+  0% {
+    background-color: var(--grid-flash-down);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
