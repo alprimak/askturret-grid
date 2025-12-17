@@ -4,10 +4,21 @@ import { PerformanceDemo } from './demos/PerformanceDemo';
 import { TradingDemo } from './demos/TradingDemo';
 import { OrderBookDemo } from './demos/OrderBookDemo';
 import { TopMoversDemo } from './demos/TopMoversDemo';
+import { TimeSalesDemo } from './demos/TimeSalesDemo';
+import { PositionLadderDemo } from './demos/PositionLadderDemo';
 import { ThemingDemo } from './demos/ThemingDemo';
 import { BenchmarkDemo } from './demos/BenchmarkDemo';
 
-type DemoTab = 'basic' | 'performance' | 'trading' | 'orderbook' | 'topmovers' | 'theming' | 'benchmark';
+type DemoTab =
+  | 'basic'
+  | 'performance'
+  | 'trading'
+  | 'orderbook'
+  | 'timesales'
+  | 'ladder'
+  | 'topmovers'
+  | 'theming'
+  | 'benchmark';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<DemoTab>('basic');
@@ -45,6 +56,18 @@ export default function App() {
           Order Book
         </button>
         <button
+          className={`tab ${activeTab === 'timesales' ? 'active' : ''}`}
+          onClick={() => setActiveTab('timesales')}
+        >
+          Time & Sales
+        </button>
+        <button
+          className={`tab ${activeTab === 'ladder' ? 'active' : ''}`}
+          onClick={() => setActiveTab('ladder')}
+        >
+          Ladder
+        </button>
+        <button
           className={`tab ${activeTab === 'topmovers' ? 'active' : ''}`}
           onClick={() => setActiveTab('topmovers')}
         >
@@ -68,6 +91,8 @@ export default function App() {
       {activeTab === 'performance' && <PerformanceDemo />}
       {activeTab === 'trading' && <TradingDemo />}
       {activeTab === 'orderbook' && <OrderBookDemo />}
+      {activeTab === 'timesales' && <TimeSalesDemo />}
+      {activeTab === 'ladder' && <PositionLadderDemo />}
       {activeTab === 'topmovers' && <TopMoversDemo />}
       {activeTab === 'theming' && <ThemingDemo />}
       {activeTab === 'benchmark' && <BenchmarkDemo />}

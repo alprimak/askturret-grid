@@ -23,6 +23,14 @@ export interface ColumnDef<T> {
   cellClass?: (value: unknown, row: T) => string;
   /** Enable flash highlighting on numeric value changes */
   flashOnChange?: boolean;
+  /** Disable resizing for this column (default: true when grid resizable) */
+  resizable?: boolean;
+  /** Disable reordering for this column (default: true when grid reorderable) */
+  reorderable?: boolean;
+  /** Minimum width in pixels for this column */
+  minWidth?: number;
+  /** Maximum width in pixels for this column */
+  maxWidth?: number;
 }
 
 /**
@@ -62,6 +70,26 @@ export interface DataGridProps<T> {
    * 'auto' enables for >1000 rows (default), true always, false never.
    */
   useWasmCore?: boolean | 'auto';
+
+  // Column Resizing
+  /** Enable column resizing (default: false) */
+  resizable?: boolean;
+  /** Minimum column width in pixels (default: 50) */
+  minColumnWidth?: number;
+  /** Maximum column width in pixels (default: 500) */
+  maxColumnWidth?: number;
+  /** Controlled column widths - Record<field, width in px> */
+  columnWidths?: Record<string, number>;
+  /** Callback when column is resized */
+  onColumnResize?: (field: string, width: number) => void;
+
+  // Column Reordering
+  /** Enable column reordering via drag & drop (default: false) */
+  reorderable?: boolean;
+  /** Controlled column order - array of field names */
+  columnOrder?: string[];
+  /** Callback when columns are reordered */
+  onColumnReorder?: (newOrder: string[]) => void;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -102,16 +130,196 @@ export function DataGrid<T extends object>({
   disableFlash = false,
   onRowClick,
   useWasmCore = 'auto',
+  // Column resizing
+  resizable = false,
+  minColumnWidth = 50,
+  maxColumnWidth = 500,
+  columnWidths: controlledWidths,
+  onColumnResize,
+  // Column reordering
+  reorderable = false,
+  columnOrder: controlledOrder,
+  onColumnReorder,
 }: DataGridProps<T>) {
   const [sort, setSort] = useState<SortState>({ field: null, direction: null });
   const [filter, setFilter] = useState('');
   const [, forceUpdate] = useState(0);
   const parentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const gridCoreRef = useRef<GridCore | null>(null);
   const [wasmCoreReady, setWasmCoreReady] = useState(false);
 
   const flashMapRef = useRef<Map<string, FlashEntry>>(new Map());
   const prevValuesRef = useRef<Map<string, number>>(new Map());
+
+  // Column resize state (uncontrolled mode)
+  const [internalWidths, setInternalWidths] = useState<Record<string, number>>({});
+  const [resizing, setResizing] = useState<{
+    field: string;
+    startX: number;
+    startWidth: number;
+    atLimit: 'min' | 'max' | null;
+  } | null>(null);
+
+  // Column reorder state (uncontrolled mode)
+  const [internalOrder, setInternalOrder] = useState<string[]>([]);
+  const [dragging, setDragging] = useState<{
+    field: string;
+    targetIndex: number | null;
+  } | null>(null);
+
+  // Determine controlled vs uncontrolled
+  const columnWidths = controlledWidths ?? internalWidths;
+  const columnOrder = controlledOrder ?? internalOrder;
+
+  // Order columns based on columnOrder prop
+  const orderedColumns = useMemo(() => {
+    if (columnOrder.length === 0) return columns;
+    return columnOrder
+      .map((field) => columns.find((c) => String(c.field) === field))
+      .filter((c): c is ColumnDef<T> => c !== undefined);
+  }, [columns, columnOrder]);
+
+  // Get column width (controlled > column.width > default)
+  const getColumnWidth = useCallback(
+    (col: ColumnDef<T>): number => {
+      const field = String(col.field);
+      if (columnWidths[field] !== undefined) return columnWidths[field];
+      // Parse column width if specified (e.g., "100px" -> 100)
+      if (col.width) {
+        const parsed = parseInt(col.width, 10);
+        if (!isNaN(parsed)) return parsed;
+      }
+      return 100; // default width
+    },
+    [columnWidths]
+  );
+
+  // Resize handlers
+  const handleResizeStart = useCallback(
+    (field: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const col = columns.find((c) => String(c.field) === field);
+      const currentWidth = getColumnWidth(col!);
+      setResizing({ field, startX: e.clientX, startWidth: currentWidth, atLimit: null });
+      document.body.classList.add('askturret-grid-resizing');
+    },
+    [columns, getColumnWidth]
+  );
+
+  const handleResizeMove = useCallback(
+    (e: MouseEvent) => {
+      if (!resizing) return;
+      const col = columns.find((c) => String(c.field) === resizing.field);
+      const colMinWidth = col?.minWidth ?? minColumnWidth;
+      const colMaxWidth = col?.maxWidth ?? maxColumnWidth;
+      const delta = e.clientX - resizing.startX;
+      const rawWidth = resizing.startWidth + delta;
+      const newWidth = Math.max(colMinWidth, Math.min(colMaxWidth, rawWidth));
+
+      // Detect if we're at a limit
+      let atLimit: 'min' | 'max' | null = null;
+      if (rawWidth <= colMinWidth) {
+        atLimit = 'min';
+      } else if (rawWidth >= colMaxWidth) {
+        atLimit = 'max';
+      }
+
+      // Update limit state for visual feedback
+      if (atLimit !== resizing.atLimit) {
+        setResizing((prev) => (prev ? { ...prev, atLimit } : null));
+        // Update body class for cursor feedback
+        document.body.classList.toggle('askturret-grid-at-min', atLimit === 'min');
+        document.body.classList.toggle('askturret-grid-at-max', atLimit === 'max');
+      }
+
+      if (onColumnResize) {
+        onColumnResize(resizing.field, newWidth);
+      } else {
+        setInternalWidths((prev) => ({ ...prev, [resizing.field]: newWidth }));
+      }
+    },
+    [resizing, columns, minColumnWidth, maxColumnWidth, onColumnResize]
+  );
+
+  const handleResizeEnd = useCallback(() => {
+    setResizing(null);
+    document.body.classList.remove('askturret-grid-resizing');
+    document.body.classList.remove('askturret-grid-at-min');
+    document.body.classList.remove('askturret-grid-at-max');
+  }, []);
+
+  // Attach/detach resize listeners
+  useEffect(() => {
+    if (resizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [resizing, handleResizeMove, handleResizeEnd]);
+
+  // Sync horizontal scroll between header and body in virtualized fixed-width mode
+  useEffect(() => {
+    if (!resizable) return;
+    const body = parentRef.current;
+    const header = headerRef.current;
+    if (!body || !header) return;
+
+    const handleScroll = () => {
+      header.scrollLeft = body.scrollLeft;
+    };
+
+    body.addEventListener('scroll', handleScroll);
+    return () => body.removeEventListener('scroll', handleScroll);
+  }, [resizable]);
+
+  // Drag & drop handlers for column reordering
+  const handleDragStart = useCallback((field: string, e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', field);
+    setDragging({ field, targetIndex: null });
+  }, []);
+
+  const handleDragOver = useCallback(
+    (targetField: string, targetIndex: number, e: React.DragEvent) => {
+      e.preventDefault();
+      if (!dragging || dragging.field === targetField) return;
+      setDragging((prev) => (prev ? { ...prev, targetIndex } : null));
+    },
+    [dragging]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!dragging || dragging.targetIndex === null) return;
+
+      const currentOrder = columnOrder.length > 0 ? columnOrder : columns.map((c) => String(c.field));
+
+      const fromIndex = currentOrder.indexOf(dragging.field);
+      if (fromIndex === -1) return;
+
+      const newOrder = [...currentOrder];
+      newOrder.splice(fromIndex, 1);
+      newOrder.splice(dragging.targetIndex, 0, dragging.field);
+
+      if (onColumnReorder) {
+        onColumnReorder(newOrder);
+      } else {
+        setInternalOrder(newOrder);
+      }
+      setDragging(null);
+    },
+    [dragging, columnOrder, columns, onColumnReorder]
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragging(null);
+  }, []);
 
   const rowHeight = rowHeightProp ?? (compact ? 28 : 36);
 
@@ -448,7 +656,7 @@ export function DataGrid<T extends object>({
           className={onRowClick ? 'clickable' : ''}
           onClick={onRowClick ? () => onRowClick(row) : undefined}
         >
-          {columns.map((col) => {
+          {orderedColumns.map((col) => {
             const field = String(col.field);
             const value = getNestedValue(row, field);
             const flashClass = col.flashOnChange ? getCellFlashClass(key, field) : '';
@@ -465,7 +673,7 @@ export function DataGrid<T extends object>({
         </tr>
       );
     },
-    [columns, getRowKey, getCellFlashClass, onRowClick, updateFlashForRow]
+    [orderedColumns, getRowKey, getCellFlashClass, onRowClick, updateFlashForRow]
   );
 
   // Render a virtualized row
@@ -481,19 +689,20 @@ export function DataGrid<T extends object>({
           style={style}
           onClick={onRowClick ? () => onRowClick(row) : undefined}
         >
-          {columns.map((col) => {
+          {orderedColumns.map((col) => {
             const field = String(col.field);
             const value = getNestedValue(row, field);
             const flashClass = col.flashOnChange ? getCellFlashClass(key, field) : '';
             const customClass = col.cellClass ? col.cellClass(value, row) : '';
             const alignClass =
               col.align === 'right' ? 'align-right' : col.align === 'center' ? 'align-center' : '';
+            const width = resizable ? getColumnWidth(col) : undefined;
 
             return (
               <div
                 key={field}
-                className={`askturret-grid-virtual-cell ${alignClass} ${flashClass} ${customClass}`.trim()}
-                style={{ minWidth: col.width }}
+                className={`askturret-grid-virtual-cell ${alignClass} ${flashClass} ${customClass} ${resizable ? 'fixed-width' : ''}`.trim()}
+                style={resizable ? { width, minWidth: width, maxWidth: width } : { minWidth: col.width }}
               >
                 {col.formatter ? col.formatter(value, row) : String(value ?? '')}
               </div>
@@ -502,38 +711,82 @@ export function DataGrid<T extends object>({
         </div>
       );
     },
-    [columns, getRowKey, getCellFlashClass, onRowClick, updateFlashForRow]
+    [orderedColumns, getRowKey, getCellFlashClass, onRowClick, updateFlashForRow, resizable, getColumnWidth]
   );
 
   // Render virtualized header
   const renderVirtualHeader = () => (
-    <div className="askturret-grid-virtual-header">
-      {columns.map((col) => {
+    <div className="askturret-grid-virtual-header" onDrop={handleDrop}>
+      {orderedColumns.map((col, index) => {
+        const field = String(col.field);
         const isSortable = col.sortable !== false;
         const alignClass =
           col.align === 'right' ? 'align-right' : col.align === 'center' ? 'align-center' : '';
-        const style = { minWidth: col.width };
+        const width = resizable ? getColumnWidth(col) : undefined;
+        const style: React.CSSProperties = resizable
+          ? { width, minWidth: width, maxWidth: width }
+          : { minWidth: col.width };
+
+        const isColumnResizable = resizable && col.resizable !== false;
+        const isColumnReorderable = reorderable && col.reorderable !== false;
+        const isDragging = dragging?.field === field;
+        const isDragOver = dragging?.targetIndex === index && dragging?.field !== field;
+
+        const dragProps = isColumnReorderable
+          ? {
+              draggable: true,
+              onDragStart: (e: React.DragEvent) => handleDragStart(field, e),
+              onDragOver: (e: React.DragEvent) => handleDragOver(field, index, e),
+              onDragEnd: handleDragEnd,
+            }
+          : {};
+
+        const headerClasses = [
+          'askturret-grid-virtual-header-cell',
+          isSortable ? 'sortable' : '',
+          alignClass,
+          resizable ? 'fixed-width' : '',
+          isDragging ? 'dragging' : '',
+          isDragOver ? 'drag-over' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+        const isResizingThis = resizing?.field === field;
+        const resizeHandleClasses = [
+          'askturret-grid-resize-handle',
+          isResizingThis && resizing?.atLimit === 'min' ? 'at-min' : '',
+          isResizingThis && resizing?.atLimit === 'max' ? 'at-max' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+        const headerContent = (
+          <>
+            <span className="askturret-grid-header-text">{col.header}</span>
+            {sort.field === field && (
+              <span className="sort-indicator">{sort.direction === 'asc' ? ' ▲' : ' ▼'}</span>
+            )}
+            {isColumnResizable && (
+              <div className={resizeHandleClasses} onMouseDown={(e) => handleResizeStart(field, e)} />
+            )}
+          </>
+        );
 
         return isSortable ? (
           <button
-            key={String(col.field)}
+            key={field}
             type="button"
-            className={`askturret-grid-virtual-header-cell sortable ${alignClass}`}
+            className={headerClasses}
             style={style}
-            onClick={() => handleSort(String(col.field))}
+            onClick={() => handleSort(field)}
+            {...dragProps}
           >
-            {col.header}
-            {sort.field === String(col.field) && (
-              <span className="sort-indicator">{sort.direction === 'asc' ? ' ▲' : ' ▼'}</span>
-            )}
+            {headerContent}
           </button>
         ) : (
-          <div
-            key={String(col.field)}
-            className={`askturret-grid-virtual-header-cell ${alignClass}`}
-            style={style}
-          >
-            {col.header}
+          <div key={field} className={headerClasses} style={style} {...dragProps}>
+            {headerContent}
           </div>
         );
       })}
@@ -542,22 +795,60 @@ export function DataGrid<T extends object>({
 
   // Render table header
   const renderTableHeader = () => (
-    <tr>
-      {columns.map((col) => {
+    <tr onDrop={handleDrop}>
+      {orderedColumns.map((col, index) => {
+        const field = String(col.field);
         const isSortable = col.sortable !== false;
         const alignClass =
           col.align === 'right' ? 'align-right' : col.align === 'center' ? 'align-center' : '';
+        const width = resizable ? getColumnWidth(col) : undefined;
+
+        const isColumnResizable = resizable && col.resizable !== false;
+        const isColumnReorderable = reorderable && col.reorderable !== false;
+        const isDragging = dragging?.field === field;
+        const isDragOver = dragging?.targetIndex === index && dragging?.field !== field;
+
+        const headerClasses = [
+          isSortable ? 'sortable' : '',
+          alignClass,
+          isDragging ? 'dragging' : '',
+          isDragOver ? 'drag-over' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+        const dragProps = isColumnReorderable
+          ? {
+              draggable: true,
+              onDragStart: (e: React.DragEvent<HTMLTableCellElement>) => handleDragStart(field, e),
+              onDragOver: (e: React.DragEvent<HTMLTableCellElement>) => handleDragOver(field, index, e),
+              onDragEnd: handleDragEnd,
+            }
+          : {};
+
+        const isResizingThis = resizing?.field === field;
+        const resizeHandleClasses = [
+          'askturret-grid-resize-handle',
+          isResizingThis && resizing?.atLimit === 'min' ? 'at-min' : '',
+          isResizingThis && resizing?.atLimit === 'max' ? 'at-max' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
 
         return (
           <th
-            key={String(col.field)}
-            className={`${isSortable ? 'sortable' : ''} ${alignClass}`}
-            style={{ width: col.width }}
-            onClick={() => isSortable && handleSort(String(col.field))}
+            key={field}
+            className={headerClasses}
+            style={resizable ? { width } : { width: col.width }}
+            onClick={() => isSortable && handleSort(field)}
+            {...dragProps}
           >
-            {col.header}
-            {isSortable && sort.field === String(col.field) && (
+            <span className="askturret-grid-header-text">{col.header}</span>
+            {isSortable && sort.field === field && (
               <span className="sort-indicator">{sort.direction === 'asc' ? '▲' : '▼'}</span>
+            )}
+            {isColumnResizable && (
+              <div className={resizeHandleClasses} onMouseDown={(e) => handleResizeStart(field, e)} />
             )}
           </th>
         );
@@ -583,8 +874,10 @@ export function DataGrid<T extends object>({
 
       {/* Table - Virtualized or Standard */}
       {shouldVirtualize ? (
-        <div className="askturret-grid-virtual">
-          <div className="sticky">{renderVirtualHeader()}</div>
+        <div className={`askturret-grid-virtual ${resizable ? 'fixed-width-mode' : ''}`}>
+          <div ref={headerRef} className="sticky" style={resizable ? { overflow: 'hidden' } : undefined}>
+            {renderVirtualHeader()}
+          </div>
           <div ref={parentRef} className="askturret-grid-virtual-body">
             <div
               style={{
@@ -609,13 +902,20 @@ export function DataGrid<T extends object>({
           </div>
         </div>
       ) : (
-        <div className="askturret-grid-body">
+        <div className={`askturret-grid-body ${resizable ? 'fixed-width-mode' : ''}`}>
           <table>
+            {resizable && (
+              <colgroup>
+                {orderedColumns.map((col) => (
+                  <col key={String(col.field)} style={{ width: getColumnWidth(col) }} />
+                ))}
+              </colgroup>
+            )}
             <thead className={stickyHeader ? 'sticky' : ''}>{renderTableHeader()}</thead>
             <tbody>
               {sortedData.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="askturret-grid-empty">
+                  <td colSpan={orderedColumns.length} className="askturret-grid-empty">
                     {emptyMessage}
                   </td>
                 </tr>

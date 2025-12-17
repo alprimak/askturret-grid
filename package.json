@@ -14,7 +14,9 @@
     "./styles.css": "./dist/styles.css",
     "./src/styles/grid.css": "./src/styles/grid.css",
     "./src/styles/orderbook.css": "./src/styles/orderbook.css",
-    "./src/styles/topmovers.css": "./src/styles/topmovers.css"
+    "./src/styles/topmovers.css": "./src/styles/topmovers.css",
+    "./src/styles/timesales.css": "./src/styles/timesales.css",
+    "./src/styles/positionladder.css": "./src/styles/positionladder.css"
   },
   "files": [
     "dist",
@@ -25,7 +27,7 @@
   ],
   "scripts": {
     "//build": "NOTE: When adding new CSS files, update both the cat command below AND exports in package.json",
-    "build": "tsc && cat src/styles/grid.css src/styles/orderbook.css src/styles/topmovers.css > dist/styles.css",
+    "build": "tsc && cat src/styles/grid.css src/styles/orderbook.css src/styles/topmovers.css src/styles/timesales.css src/styles/positionladder.css > dist/styles.css",
     "dev": "tsc --watch",
     "demo": "cd demo && npm run dev",
     "test": "vitest",

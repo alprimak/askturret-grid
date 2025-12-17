@@ -34,11 +34,14 @@ askturret-grid/
 │   ├── DataGrid.tsx        # Main grid component
 │   ├── OrderBook.tsx       # Level 2 market depth
 │   ├── TopMovers.tsx       # Gainers/losers component
+│   ├── TimeSales.tsx       # Trade tape component
+│   ├── PositionLadder.tsx  # DOM-style price ladder
 │   ├── index.ts            # Package exports
 │   ├── hooks/
 │   │   └── useAdaptiveFlash.ts  # FPS-aware flash highlighting
 │   ├── utils/
-│   │   └── formatters.ts   # Price, quantity, P&L formatters
+│   │   ├── formatters.ts   # Price, quantity, P&L formatters
+│   │   └── csv.ts          # CSV export utility
 │   ├── wasm/
 │   │   ├── GridCore.ts     # WASM core wrapper
 │   │   ├── index.ts        # WASM initialization
@@ -47,7 +50,9 @@ askturret-grid/
 │   └── styles/
 │       ├── grid.css        # DataGrid styles
 │       ├── orderbook.css   # OrderBook styles
-│       └── topmovers.css   # TopMovers styles
+│       ├── topmovers.css   # TopMovers styles
+│       ├── timesales.css   # TimeSales styles
+│       └── positionladder.css  # PositionLadder styles
 ├── demo/                   # Demo application
 │   └── src/demos/          # Individual component demos
 ├── dist/                   # Build output
@@ -57,7 +62,7 @@ askturret-grid/
 ## Components
 
 ### DataGrid
-Main virtualized grid with sorting, filtering, flash highlighting.
+Main virtualized grid with sorting, filtering, flash highlighting, column resizing and reordering.
 
 ```tsx
 <DataGrid
@@ -68,6 +73,16 @@ Main virtualized grid with sorting, filtering, flash highlighting.
   ]}
   rowKey="id"
   showFilter={true}
+  // Column resizing
+  resizable={true}
+  columnWidths={{ symbol: 150, price: 100 }}  // Controlled widths
+  onColumnResize={(field, width) => {...}}
+  minColumnWidth={50}
+  maxColumnWidth={500}
+  // Column reordering
+  reorderable={true}
+  columnOrder={['price', 'symbol']}  // Controlled order
+  onColumnReorder={(newOrder) => {...}}
 />
 ```
 
@@ -93,6 +108,39 @@ Gainers/losers display with periodic ranking updates.
   losersCount={5}
   updateInterval={5000}
   onItemClick={(item, type) => {}}
+/>
+```
+
+### TimeSales
+Trade tape showing executed trades chronologically.
+
+```tsx
+<TimeSales
+  trades={trades}
+  maxTrades={100}
+  showTickDirection={true}
+  flashOnNew={true}
+  autoScroll={true}
+  largeTradeThreshold={500}
+  onTradeClick={(trade) => {}}
+/>
+```
+
+### PositionLadder
+DOM-style price ladder with click-to-trade.
+
+```tsx
+<PositionLadder
+  levels={levels}
+  tickSize={0.25}
+  centerPrice={5925.0}
+  visibleLevels={20}
+  position={{ entryPrice: 5920, quantity: 10, side: 'long' }}
+  lastPrice={5925.5}
+  showDepthBars={true}
+  onBidClick={(price) => {}}
+  onAskClick={(price) => {}}
+  onRecenter={() => {}}
 />
 ```
 
@@ -124,6 +172,33 @@ All styling via CSS variables for theming:
 --grid-bid, --grid-ask
 ```
 
+### CSV Export
+Export grid data to CSV with proper escaping.
+
+```tsx
+import { exportToCSV } from '@askturret/grid';
+
+// Trigger browser download
+exportToCSV(data, columns, { filename: 'users.csv' });
+
+// Get CSV string (no download)
+const csv = exportToCSV(data, columns, { download: false });
+
+// Options
+exportToCSV(data, columns, {
+  filename: 'export.csv',    // Default filename
+  delimiter: ',',            // Column delimiter
+  includeHeaders: true,      // Include header row
+  download: true,            // Trigger download or return string
+});
+```
+
+Features:
+- Proper CSV escaping (quotes, commas, newlines)
+- Nested field access (e.g., `user.name`)
+- BOM for Excel compatibility
+- Works with same column definitions as DataGrid
+
 ## Testing
 
 ```bash
@@ -139,7 +214,7 @@ Test files colocated: `Component.tsx` → `Component.test.tsx`
 The build script concatenates CSS files:
 
 ```bash
-cat src/styles/grid.css src/styles/orderbook.css src/styles/topmovers.css > dist/styles.css
+cat src/styles/grid.css src/styles/orderbook.css src/styles/topmovers.css src/styles/timesales.css src/styles/positionladder.css > dist/styles.css
 ```
 
 **When adding new CSS files:** Update both the cat command in `package.json` AND the exports section.
@@ -162,49 +237,23 @@ The main askturret repo uses this package via file: dependency:
 - [x] WASM core with trigram indexing
 - [x] OrderBook component
 - [x] TopMovers component
+- [x] TimeSales component
+- [x] PositionLadder component
 - [x] CI pipeline (GitHub Actions)
+- [x] Column resizing & reordering
+- [x] CSV export
 
-### In Progress
-- [ ] TimeSales component (trade tape)
-- [ ] PositionLadder component (DOM/price ladder)
-
-### Planned
-- [ ] Column resizing & reordering
-- [ ] Row grouping & aggregation
-- [ ] Excel/CSV export
+### Planned (Open Source)
 - [ ] npm publish
 - [ ] Landing page at grid.askturret.com
 - [ ] "vs traditional grids" benchmark page
 
-## Component Specs (TODO)
-
-### TimeSales
-Trade tape showing executed trades chronologically.
-
-```typescript
-interface TimeSalesProps {
-  trades: Trade[];
-  maxTrades?: number;        // Default: 100
-  showTickDirection?: boolean;
-  flashOnNew?: boolean;      // Default: true
-  autoScroll?: boolean;      // Default: true
-  largeTradeThreshold?: number;
-}
-```
-
-### PositionLadder
-DOM-style price ladder with click-to-trade.
-
-```typescript
-interface PositionLadderProps {
-  levels: LadderLevel[];
-  tickSize: number;
-  centerPrice: number;
-  position?: { entryPrice: number; quantity: number; side: 'long' | 'short' };
-  onBidClick?: (price: number) => void;
-  onAskClick?: (price: number) => void;
-}
-```
+### Planned (Enterprise Tier)
+- [ ] Row grouping & aggregation
+- [ ] Pivot tables
+- [ ] Excel export
+- [ ] Tree data / hierarchical rows
+- [ ] Server-side pagination & filtering
 
 ## User Preferences
 

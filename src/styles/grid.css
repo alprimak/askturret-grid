@@ -281,3 +281,116 @@
     background-color: transparent;
   }
 }
+
+/* Column Resizing */
+.askturret-grid th,
+.askturret-grid-virtual-header-cell {
+  position: relative;
+}
+
+.askturret-grid-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 1;
+}
+
+.askturret-grid-resize-handle:hover {
+  background: var(--grid-accent);
+  opacity: 0.5;
+}
+
+/* At limit visual feedback */
+.askturret-grid-resize-handle.at-min,
+.askturret-grid-resize-handle.at-max {
+  background: var(--grid-ask, #ef4444);
+  opacity: 0.7;
+}
+
+/* Resizing cursor on body during resize */
+body.askturret-grid-resizing {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+body.askturret-grid-resizing * {
+  cursor: col-resize !important;
+}
+
+/* Show not-allowed cursor when at limit */
+body.askturret-grid-at-min,
+body.askturret-grid-at-max {
+  cursor: not-allowed !important;
+}
+
+body.askturret-grid-at-min *,
+body.askturret-grid-at-max * {
+  cursor: not-allowed !important;
+}
+
+/* Fixed width mode when resizing enabled */
+.askturret-grid-virtual.fixed-width-mode {
+  overflow: hidden;
+}
+
+.askturret-grid-virtual.fixed-width-mode .askturret-grid-virtual-body {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.askturret-grid-virtual.fixed-width-mode .askturret-grid-virtual-header {
+  display: inline-flex;
+  min-width: 100%;
+}
+
+.askturret-grid-virtual.fixed-width-mode .askturret-grid-virtual-row {
+  display: inline-flex;
+}
+
+.askturret-grid-virtual-header-cell.fixed-width,
+.askturret-grid-virtual-cell.fixed-width {
+  flex: 0 0 auto;
+}
+
+/* Table fixed width mode */
+.askturret-grid-body.fixed-width-mode {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.askturret-grid-body.fixed-width-mode table {
+  width: auto;
+  table-layout: fixed;
+}
+
+/* Column Drag & Drop */
+.askturret-grid th[draggable='true'],
+.askturret-grid-virtual-header-cell[draggable='true'] {
+  cursor: grab;
+}
+
+.askturret-grid th[draggable='true']:active,
+.askturret-grid-virtual-header-cell[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.askturret-grid th.dragging,
+.askturret-grid-virtual-header-cell.dragging {
+  opacity: 0.5;
+}
+
+.askturret-grid th.drag-over,
+.askturret-grid-virtual-header-cell.drag-over {
+  border-left: 2px solid var(--grid-accent);
+}
+
+/* Header text wrapper */
+.askturret-grid-header-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,4 +1,5 @@
-import { DataGrid, type ColumnDef } from '@askturret/grid';
+import { useState } from 'react';
+import { DataGrid, type ColumnDef, exportToCSV } from '@askturret/grid';
 
 interface User {
   id: number;
@@ -100,14 +101,65 @@ const columns: ColumnDef<User>[] = [
   { field: 'lastLogin', header: 'Last Login', align: 'right', sortable: true, width: '120px' },
 ];
 
+// Columns for CSV export (without JSX formatters)
+const exportColumns: ColumnDef<User>[] = [
+  { field: 'name', header: 'Name' },
+  { field: 'email', header: 'Email' },
+  { field: 'role', header: 'Role' },
+  { field: 'status', header: 'Status' },
+  { field: 'lastLogin', header: 'Last Login' },
+];
+
 export function BasicDemo() {
+  const [resizable, setResizable] = useState(false);
+  const [reorderable, setReorderable] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+
+  const handleColumnResize = (field: string, width: number) => {
+    setColumnWidths((prev) => ({ ...prev, [field]: width }));
+  };
+
+  const handleColumnReorder = (newOrder: string[]) => {
+    setColumnOrder(newOrder);
+  };
+
+  const resetColumns = () => {
+    setColumnWidths({});
+    setColumnOrder([]);
+  };
+
+  const handleExport = () => {
+    exportToCSV(users, exportColumns, { filename: 'users.csv' });
+  };
+
   return (
     <div className="demo-section">
       <div className="demo-header">
         <span className="demo-title">Basic DataGrid</span>
-        <span style={{ fontSize: 12, color: '#6b6b7b' }}>
-          Click column headers to sort • Use filter to search
-        </span>
+        <div className="demo-controls">
+          <span style={{ fontSize: 12, color: '#6b6b7b' }}>
+            Click column headers to sort • Use filter to search
+          </span>
+          <button onClick={handleExport} className="start">
+            Export CSV
+          </button>
+        </div>
+      </div>
+      <div className="demo-options">
+        <label>
+          <input type="checkbox" checked={resizable} onChange={(e) => setResizable(e.target.checked)} />{' '}
+          Resizable Columns
+        </label>
+        <label>
+          <input type="checkbox" checked={reorderable} onChange={(e) => setReorderable(e.target.checked)} />{' '}
+          Reorderable Columns
+        </label>
+        {(Object.keys(columnWidths).length > 0 || columnOrder.length > 0) && (
+          <button onClick={resetColumns} style={{ marginLeft: 'auto' }}>
+            Reset Columns
+          </button>
+        )}
       </div>
       <div className="demo-content">
         <DataGrid
@@ -117,8 +169,23 @@ export function BasicDemo() {
           showFilter
           filterPlaceholder="Search users..."
           filterFields={['name', 'email', 'role', 'status']}
+          resizable={resizable}
+          reorderable={reorderable}
+          columnWidths={Object.keys(columnWidths).length > 0 ? columnWidths : undefined}
+          onColumnResize={handleColumnResize}
+          columnOrder={columnOrder.length > 0 ? columnOrder : undefined}
+          onColumnReorder={handleColumnReorder}
         />
       </div>
+      {(Object.keys(columnWidths).length > 0 || columnOrder.length > 0) && (
+        <div className="demo-options" style={{ borderTop: '1px solid #1e1e2e', marginTop: 0 }}>
+          <div style={{ fontSize: 11, color: '#6b6b7b' }}>
+            {Object.keys(columnWidths).length > 0 && <span>Widths: {JSON.stringify(columnWidths)}</span>}
+            {Object.keys(columnWidths).length > 0 && columnOrder.length > 0 && <span> | </span>}
+            {columnOrder.length > 0 && <span>Order: {JSON.stringify(columnOrder)}</span>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

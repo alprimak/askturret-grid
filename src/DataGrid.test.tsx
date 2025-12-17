@@ -330,4 +330,201 @@ describe('DataGrid', () => {
       expect(screen.getByText('Jane')).toBeInTheDocument();
     });
   });
+
+  describe('column resizing', () => {
+    it('renders resize handles when resizable is true', () => {
+      const { container } = render(
+        <DataGrid data={testData} columns={columns} rowKey="id" resizable={true} />
+      );
+
+      const handles = container.querySelectorAll('.askturret-grid-resize-handle');
+      expect(handles.length).toBe(3); // One for each column
+    });
+
+    it('does not render resize handles when resizable is false', () => {
+      const { container } = render(
+        <DataGrid data={testData} columns={columns} rowKey="id" resizable={false} />
+      );
+
+      const handles = container.querySelectorAll('.askturret-grid-resize-handle');
+      expect(handles.length).toBe(0);
+    });
+
+    it('respects column-level resizable setting', () => {
+      const columnsWithNonResizable: ColumnDef<TestRow>[] = [
+        { field: 'name', header: 'Name', resizable: false },
+        { field: 'value', header: 'Value' },
+        { field: 'status', header: 'Status' },
+      ];
+
+      const { container } = render(
+        <DataGrid data={testData} columns={columnsWithNonResizable} rowKey="id" resizable={true} />
+      );
+
+      const handles = container.querySelectorAll('.askturret-grid-resize-handle');
+      expect(handles.length).toBe(2); // Only Value and Status have handles
+    });
+
+    it('calls onColumnResize when controlled', () => {
+      const handleResize = vi.fn();
+
+      const { container } = render(
+        <DataGrid
+          data={testData}
+          columns={columns}
+          rowKey="id"
+          resizable={true}
+          onColumnResize={handleResize}
+        />
+      );
+
+      const handle = container.querySelector('.askturret-grid-resize-handle');
+      fireEvent.mouseDown(handle!, { clientX: 100 });
+
+      // Simulate mousemove
+      fireEvent.mouseMove(document, { clientX: 150 });
+
+      expect(handleResize).toHaveBeenCalledWith('name', expect.any(Number));
+    });
+
+    it('updates internal width in uncontrolled mode', () => {
+      const { container } = render(
+        <DataGrid data={testData} columns={columns} rowKey="id" resizable={true} />
+      );
+
+      const handle = container.querySelector('.askturret-grid-resize-handle');
+      fireEvent.mouseDown(handle!, { clientX: 100 });
+
+      // Simulate mousemove
+      fireEvent.mouseMove(document, { clientX: 150 });
+
+      // Mouseup to finalize
+      fireEvent.mouseUp(document);
+
+      // Check that the column width was updated
+      const headerCell = container.querySelector('th');
+      expect(headerCell?.style.width).toBeTruthy();
+    });
+
+    it('applies controlled columnWidths', () => {
+      const { container } = render(
+        <DataGrid
+          data={testData}
+          columns={columns}
+          rowKey="id"
+          resizable={true}
+          columnWidths={{ name: 200, value: 150 }}
+        />
+      );
+
+      const headerCells = container.querySelectorAll('th');
+      expect(headerCells[0]?.style.width).toBe('200px');
+      expect(headerCells[1]?.style.width).toBe('150px');
+    });
+  });
+
+  describe('column reordering', () => {
+    it('enables drag on headers when reorderable is true', () => {
+      const { container } = render(
+        <DataGrid data={testData} columns={columns} rowKey="id" reorderable={true} />
+      );
+
+      const headers = container.querySelectorAll('th[draggable="true"]');
+      expect(headers.length).toBe(3);
+    });
+
+    it('does not enable drag when reorderable is false', () => {
+      const { container } = render(
+        <DataGrid data={testData} columns={columns} rowKey="id" reorderable={false} />
+      );
+
+      const headers = container.querySelectorAll('th[draggable="true"]');
+      expect(headers.length).toBe(0);
+    });
+
+    it('respects column-level reorderable setting', () => {
+      const columnsWithNonReorderable: ColumnDef<TestRow>[] = [
+        { field: 'name', header: 'Name', reorderable: false },
+        { field: 'value', header: 'Value' },
+        { field: 'status', header: 'Status' },
+      ];
+
+      const { container } = render(
+        <DataGrid data={testData} columns={columnsWithNonReorderable} rowKey="id" reorderable={true} />
+      );
+
+      const headers = container.querySelectorAll('th[draggable="true"]');
+      expect(headers.length).toBe(2); // Only Value and Status are draggable
+    });
+
+    it('renders columns in controlled order', () => {
+      const { container } = render(
+        <DataGrid data={testData} columns={columns} rowKey="id" columnOrder={['status', 'name', 'value']} />
+      );
+
+      const headers = container.querySelectorAll('th .askturret-grid-header-text');
+      expect(headers[0]?.textContent).toBe('Status');
+      expect(headers[1]?.textContent).toBe('Name');
+      expect(headers[2]?.textContent).toBe('Value');
+    });
+
+    it('calls onColumnReorder when columns are reordered', () => {
+      const handleReorder = vi.fn();
+
+      const { container } = render(
+        <DataGrid
+          data={testData}
+          columns={columns}
+          rowKey="id"
+          reorderable={true}
+          onColumnReorder={handleReorder}
+        />
+      );
+
+      const headers = container.querySelectorAll('th');
+      const sourceHeader = headers[0]; // Name
+      const targetHeader = headers[2]; // Status
+
+      // Start drag
+      fireEvent.dragStart(sourceHeader, {
+        dataTransfer: { setData: vi.fn(), effectAllowed: '' },
+      });
+
+      // Drag over target
+      fireEvent.dragOver(targetHeader);
+
+      // Drop
+      fireEvent.drop(targetHeader.closest('tr')!);
+
+      expect(handleReorder).toHaveBeenCalled();
+    });
+
+    it('adds dragging class during drag', () => {
+      const { container } = render(
+        <DataGrid data={testData} columns={columns} rowKey="id" reorderable={true} />
+      );
+
+      const header = container.querySelector('th')!;
+
+      fireEvent.dragStart(header, {
+        dataTransfer: { setData: vi.fn(), effectAllowed: '' },
+      });
+
+      expect(header).toHaveClass('dragging');
+    });
+  });
+
+  describe('resize and reorder together', () => {
+    it('supports both resizable and reorderable simultaneously', () => {
+      const { container } = render(
+        <DataGrid data={testData} columns={columns} rowKey="id" resizable={true} reorderable={true} />
+      );
+
+      const handles = container.querySelectorAll('.askturret-grid-resize-handle');
+      const draggableHeaders = container.querySelectorAll('th[draggable="true"]');
+
+      expect(handles.length).toBe(3);
+      expect(draggableHeaders.length).toBe(3);
+    });
+  });
 });

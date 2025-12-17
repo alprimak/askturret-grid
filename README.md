@@ -74,8 +74,18 @@ That's it. Virtualization, sorting, filtering, and flash highlighting work out o
 ### Trading Components
 - `<OrderBook />` - Level 2 depth visualization with bid/ask depth bars
 - `<TopMovers />` - Top gainers/losers with periodic ranking updates
-- `<TimeSales />` - Trade tape / time & sales (coming soon)
-- `<PositionLadder />` - DOM (depth of market) ladder (coming soon)
+- `<TimeSales />` - Trade tape / time & sales with large trade highlighting
+- `<PositionLadder />` - DOM (depth of market) ladder with click-to-trade
+
+### Column Management
+- **Resizable columns** - Drag to resize with min/max limits
+- **Reorderable columns** - Drag & drop column headers
+- **Controlled & uncontrolled** - Works both ways
+
+### Data Export
+- **CSV export** - One-line export with proper escaping
+- **Nested field support** - Export `user.name` style fields
+- **Excel compatible** - BOM for proper character encoding
 
 ### WASM Core
 - Rust-powered tick processing for 1000+ updates/sec
@@ -145,6 +155,18 @@ interface DataGridProps<T> {
   onRowClick?: (row: T) => void;     // Row click handler
   emptyMessage?: string;             // Message when no data
   className?: string;                // Container class
+
+  // Column resizing
+  resizable?: boolean;               // Enable column resizing
+  minColumnWidth?: number;           // Min width in px (default: 50)
+  maxColumnWidth?: number;           // Max width in px (default: 500)
+  columnWidths?: Record<string, number>;  // Controlled widths
+  onColumnResize?: (field: string, width: number) => void;
+
+  // Column reordering
+  reorderable?: boolean;             // Enable drag & drop reorder
+  columnOrder?: string[];            // Controlled order
+  onColumnReorder?: (newOrder: string[]) => void;
 }
 
 interface ColumnDef<T> {
@@ -176,6 +198,26 @@ The grid uses CSS variables for theming:
 }
 ```
 
+## CSV Export
+
+```tsx
+import { exportToCSV } from '@askturret/grid';
+
+// Trigger browser download
+exportToCSV(data, columns, { filename: 'portfolio.csv' });
+
+// Get CSV string instead
+const csv = exportToCSV(data, columns, { download: false });
+
+// All options
+exportToCSV(data, columns, {
+  filename: 'export.csv',    // Download filename
+  delimiter: ',',            // Column separator
+  includeHeaders: true,      // Include header row
+  download: true,            // false = return string
+});
+```
+
 ## vs Traditional Grids
 
 | Feature | Server-Side Grids | @askturret/grid |
@@ -197,11 +239,12 @@ The grid uses CSS variables for theming:
 - [x] WASM core with trigram indexing (1M row support)
 - [x] OrderBook component
 - [x] TopMovers component
-- [ ] TimeSales component
-- [ ] PositionLadder component
-- [ ] Column resizing & reordering
+- [x] TimeSales component
+- [x] PositionLadder component
+- [x] Column resizing & reordering
+- [x] CSV export
 - [ ] Row grouping & aggregation
-- [ ] Excel/CSV export
+- [ ] Excel export (xlsx)
 
 ## Part of AskTurret
 

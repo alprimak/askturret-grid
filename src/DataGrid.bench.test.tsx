@@ -116,10 +116,7 @@ function measureRender(
 describe('DataGrid Performance Benchmarks', () => {
   it('should render 100 rows efficiently', () => {
     const data = generateTestData(100);
-    const result = measureRender(
-      '100 rows',
-      <DataGrid data={data} columns={columns} rowKey="id" />
-    );
+    const result = measureRender('100 rows', <DataGrid data={data} columns={columns} rowKey="id" />);
 
     console.log(`\n100 rows: avg=${result.avgMs.toFixed(2)}ms, p95=${result.p95Ms.toFixed(2)}ms`);
     expect(result.p95Ms).toBeLessThan(300); // Should render in under 300ms (includes test overhead)
@@ -127,10 +124,7 @@ describe('DataGrid Performance Benchmarks', () => {
 
   it('should render 500 rows efficiently', () => {
     const data = generateTestData(500);
-    const result = measureRender(
-      '500 rows',
-      <DataGrid data={data} columns={columns} rowKey="id" />
-    );
+    const result = measureRender('500 rows', <DataGrid data={data} columns={columns} rowKey="id" />);
 
     console.log(`500 rows: avg=${result.avgMs.toFixed(2)}ms, p95=${result.p95Ms.toFixed(2)}ms`);
     expect(result.p95Ms).toBeLessThan(300); // Should render in under 300ms
@@ -152,18 +146,10 @@ describe('DataGrid Performance Benchmarks', () => {
     const data = generateTestData(500);
     const result = measureRender(
       '500 rows + filter',
-      <DataGrid
-        data={data}
-        columns={columns}
-        rowKey="id"
-        showFilter={true}
-        filterFields={['symbol']}
-      />
+      <DataGrid data={data} columns={columns} rowKey="id" showFilter={true} filterFields={['symbol']} />
     );
 
-    console.log(
-      `500 rows + filter: avg=${result.avgMs.toFixed(2)}ms, p95=${result.p95Ms.toFixed(2)}ms`
-    );
+    console.log(`500 rows + filter: avg=${result.avgMs.toFixed(2)}ms, p95=${result.p95Ms.toFixed(2)}ms`);
     expect(result.p95Ms).toBeLessThan(350);
   });
 
@@ -202,40 +188,23 @@ describe('DataGrid Performance Benchmarks', () => {
     const results = [
       {
         rows: 100,
-        ...measureRender(
-          '100',
-          <DataGrid data={generateTestData(100)} columns={columns} rowKey="id" />
-        ),
+        ...measureRender('100', <DataGrid data={generateTestData(100)} columns={columns} rowKey="id" />),
       },
       {
         rows: 250,
-        ...measureRender(
-          '250',
-          <DataGrid data={generateTestData(250)} columns={columns} rowKey="id" />
-        ),
+        ...measureRender('250', <DataGrid data={generateTestData(250)} columns={columns} rowKey="id" />),
       },
       {
         rows: 500,
-        ...measureRender(
-          '500',
-          <DataGrid data={generateTestData(500)} columns={columns} rowKey="id" />
-        ),
+        ...measureRender('500', <DataGrid data={generateTestData(500)} columns={columns} rowKey="id" />),
       },
       {
         rows: 750,
-        ...measureRender(
-          '750',
-          <DataGrid data={generateTestData(750)} columns={columns} rowKey="id" />,
-          5
-        ),
+        ...measureRender('750', <DataGrid data={generateTestData(750)} columns={columns} rowKey="id" />, 5),
       },
       {
         rows: 1000,
-        ...measureRender(
-          '1000',
-          <DataGrid data={generateTestData(1000)} columns={columns} rowKey="id" />,
-          5
-        ),
+        ...measureRender('1000', <DataGrid data={generateTestData(1000)} columns={columns} rowKey="id" />, 5),
       },
     ];
 

@@ -1,0 +1,206 @@
+/**
+ * TimeSales component styles
+ */
+
+.askturret-timesales {
+  display: flex;
+  flex-direction: column;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--grid-font-size, 12px);
+  color: var(--grid-text, #e4e4e7);
+  background: var(--grid-bg, #0a0a0f);
+  border: 1px solid var(--grid-border, #2a2a3a);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Header */
+.askturret-timesales-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--grid-surface, #12121a);
+  border-bottom: 1px solid var(--grid-border, #2a2a3a);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--grid-text-muted, #71717a);
+  font-size: 10px;
+  gap: 8px;
+}
+
+.askturret-timesales-header-time {
+  min-width: 90px;
+}
+
+.askturret-timesales-header-tick {
+  min-width: 30px;
+  text-align: center;
+}
+
+.askturret-timesales-header-side {
+  min-width: 40px;
+  text-align: center;
+}
+
+.askturret-timesales-header-price {
+  min-width: 80px;
+  text-align: right;
+}
+
+.askturret-timesales-header-qty {
+  min-width: 70px;
+  text-align: right;
+}
+
+/* Trade list body */
+.askturret-timesales-body {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+/* Trade row */
+.askturret-timesales-trade {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  gap: 8px;
+  transition: background-color 150ms;
+  font-variant-numeric: tabular-nums;
+}
+
+.askturret-timesales-trade.clickable {
+  cursor: pointer;
+}
+
+.askturret-timesales-trade.clickable:hover {
+  background: var(--grid-row-hover, rgba(18, 18, 26, 0.5));
+}
+
+/* Large trade highlight */
+.askturret-timesales-trade.large {
+  background: var(--grid-large-trade-bg, rgba(251, 191, 36, 0.1));
+}
+
+.askturret-timesales-trade.large .askturret-timesales-qty {
+  color: var(--grid-large-trade, #fbbf24);
+  font-weight: 600;
+}
+
+/* Trade columns */
+.askturret-timesales-time {
+  min-width: 90px;
+  color: var(--grid-text-muted, #71717a);
+}
+
+.askturret-timesales-tick {
+  min-width: 30px;
+  text-align: center;
+  font-size: 10px;
+}
+
+.askturret-timesales-tick.up {
+  color: var(--grid-bid, #22c55e);
+}
+
+.askturret-timesales-tick.down {
+  color: var(--grid-ask, #ef4444);
+}
+
+.askturret-timesales-tick.none {
+  color: var(--grid-text-muted, #71717a);
+}
+
+.askturret-timesales-side {
+  min-width: 40px;
+  text-align: center;
+  font-weight: 500;
+  font-size: 11px;
+}
+
+.askturret-timesales-side.buy {
+  color: var(--grid-bid, #22c55e);
+}
+
+.askturret-timesales-side.sell {
+  color: var(--grid-ask, #ef4444);
+}
+
+.askturret-timesales-price {
+  min-width: 80px;
+  text-align: right;
+  font-weight: 500;
+}
+
+.askturret-timesales-qty {
+  min-width: 70px;
+  text-align: right;
+  color: var(--grid-text, #e4e4e7);
+}
+
+/* Empty state */
+.askturret-timesales-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--grid-text-muted, #71717a);
+}
+
+/* Flash animation for new trades */
+.askturret-timesales-trade.flash-new {
+  animation: timesales-flash-new var(--grid-flash-duration, 800ms) ease-out;
+}
+
+@keyframes timesales-flash-new {
+  0% {
+    background-color: var(--grid-flash-new, rgba(59, 130, 246, 0.4));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Buy trade flash */
+.askturret-timesales-trade.buy.flash-new {
+  animation: timesales-flash-buy var(--grid-flash-duration, 800ms) ease-out;
+}
+
+@keyframes timesales-flash-buy {
+  0% {
+    background-color: var(--grid-flash-up, rgba(34, 197, 94, 0.4));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Sell trade flash */
+.askturret-timesales-trade.sell.flash-new {
+  animation: timesales-flash-sell var(--grid-flash-duration, 800ms) ease-out;
+}
+
+@keyframes timesales-flash-sell {
+  0% {
+    background-color: var(--grid-flash-down, rgba(239, 68, 68, 0.4));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Compact mode */
+.askturret-timesales.compact .askturret-timesales-header {
+  padding: 4px 8px;
+}
+
+.askturret-timesales.compact .askturret-timesales-trade {
+  padding: 2px 8px;
+}
+
+.askturret-timesales.compact .askturret-timesales-time {
+  min-width: 75px;
+}
+
+.askturret-timesales.compact .askturret-timesales-price,
+.askturret-timesales.compact .askturret-timesales-qty {
+  min-width: 60px;
+}
