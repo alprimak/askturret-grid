@@ -4,7 +4,7 @@
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@askturret/grid)](https://bundlephobia.com/package/@askturret/grid)
 [![license](https://img.shields.io/npm/l/@askturret/grid.svg)](https://github.com/alprimak/askturret-grid/blob/main/LICENSE)
 
-**1 million rows. 60 FPS. Zero config.**
+**1 million rows. 60 FPS. Zero server.**
 
 A high-performance React data grid powered by Rust + WebAssembly with trigram indexing for instant filtering. Built for trading applications handling 1M+ rows with real-time updates at 60fps.
 

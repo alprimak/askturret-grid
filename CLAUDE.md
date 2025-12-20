@@ -4,7 +4,7 @@
 
 High-performance React data grid with Rust/WASM acceleration. Built for trading applications handling 1M+ rows with real-time updates at 60fps.
 
-**Positioning:** "1 million rows. 60 FPS. Zero config."
+**Positioning:** "1 million rows. 60 FPS. Zero server."
 
 ## Quick Reference
 

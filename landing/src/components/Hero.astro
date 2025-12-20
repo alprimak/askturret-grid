@@ -1,0 +1,89 @@
+---
+---
+
+<section class="relative min-h-screen flex items-center justify-center px-4 py-20">
+  <!-- Background gradient -->
+  <div
+    class="absolute inset-0 bg-gradient-to-b from-grid-accent/5 via-transparent to-transparent"
+  >
+  </div>
+
+  <div class="relative max-w-5xl mx-auto text-center">
+    <!-- Badge -->
+    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-grid-surface border border-grid-border mb-8">
+      <span class="w-2 h-2 rounded-full bg-grid-bid animate-pulse"></span>
+      <span class="text-sm text-grid-muted">Now with TimeSales & PositionLadder</span>
+    </div>
+
+    <!-- Headline -->
+    <h1 class="text-5xl md:text-7xl font-bold tracking-tight mb-6">
+      <span class="text-grid-text">1 million rows.</span><br />
+      <span class="text-grid-accent">60 FPS.</span>
+      <span class="text-grid-text">Zero server.</span>
+    </h1>
+
+    <!-- Subheadline -->
+    <p class="text-xl md:text-2xl text-grid-muted max-w-3xl mx-auto mb-10">
+      High-performance React data grid with Rust/WASM acceleration.
+      <br class="hidden md:block" />
+      Built for trading applications handling real-time updates.
+    </p>
+
+    <!-- Install command -->
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+      <div class="code-block flex items-center gap-3 px-6 py-3">
+        <span class="text-grid-muted">$</span>
+        <code class="text-grid-text">npm install @askturret/grid</code>
+        <button
+          class="text-grid-muted hover:text-grid-text transition-colors"
+          onclick="navigator.clipboard.writeText('npm install @askturret/grid')"
+          title="Copy to clipboard"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+            ></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- CTA buttons -->
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+      <a href="https://alprimak.github.io/askturret-grid/getting-started/installation" class="btn-primary">
+        Get Started
+      </a>
+      <a href="https://github.com/alprimak/askturret-grid" class="btn-secondary">
+        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+          <path
+            d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+          ></path>
+        </svg>
+        View on GitHub
+      </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
+      <div class="text-center">
+        <div class="text-3xl font-bold text-grid-accent">12ms</div>
+        <div class="text-sm text-grid-muted">100k row sort</div>
+      </div>
+      <div class="text-center">
+        <div class="text-3xl font-bold text-grid-bid">&lt;1ms</div>
+        <div class="text-sm text-grid-muted">Trigram filter</div>
+      </div>
+      <div class="text-center">
+        <div class="text-3xl font-bold text-grid-text">60 FPS</div>
+        <div class="text-sm text-grid-muted">Maintained</div>
+      </div>
+      <div class="text-center">
+        <div class="text-3xl font-bold text-grid-text">~45kb</div>
+        <div class="text-sm text-grid-muted">Bundle size</div>
+      </div>
+    </div>
+  </div>
+</section>

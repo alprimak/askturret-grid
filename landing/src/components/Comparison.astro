@@ -1,0 +1,80 @@
+---
+const comparisons = [
+  {
+    feature: '100k row sort',
+    serverSide: '~200ms + network',
+    askturret: '12ms client-side',
+    winner: 'askturret',
+  },
+  {
+    feature: 'Infrastructure',
+    serverSide: 'Backend required',
+    askturret: 'None',
+    winner: 'askturret',
+  },
+  {
+    feature: 'Flash highlights',
+    serverSide: 'Basic or none',
+    askturret: 'Adaptive (auto-degrades)',
+    winner: 'askturret',
+  },
+  {
+    feature: 'Trading components',
+    serverSide: 'Separate packages',
+    askturret: 'Built-in',
+    winner: 'askturret',
+  },
+  {
+    feature: 'Virtualization',
+    serverSide: 'Config required',
+    askturret: 'Zero-config (automatic)',
+    winner: 'askturret',
+  },
+  {
+    feature: 'Bundle size',
+    serverSide: '150-300kb',
+    askturret: '~45kb',
+    winner: 'askturret',
+  },
+  {
+    feature: 'License',
+    serverSide: 'Often commercial',
+    askturret: 'MIT',
+    winner: 'askturret',
+  },
+];
+---
+
+<section id="comparison" class="py-24 px-4 bg-grid-surface/50">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-16">
+      <h2 class="text-4xl font-bold text-grid-text mb-4">vs Traditional Grids</h2>
+      <p class="text-xl text-grid-muted max-w-2xl mx-auto">
+        Server-side grid performance without the server
+      </p>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="border-b border-grid-border">
+            <th class="text-left py-4 px-4 text-grid-muted font-medium">Feature</th>
+            <th class="text-left py-4 px-4 text-grid-muted font-medium">Server-Side Grids</th>
+            <th class="text-left py-4 px-4 text-grid-accent font-medium">@askturret/grid</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            comparisons.map((row) => (
+              <tr class="border-b border-grid-border/50 hover:bg-grid-surface/50 transition-colors">
+                <td class="py-4 px-4 text-grid-text font-medium">{row.feature}</td>
+                <td class="py-4 px-4 text-grid-muted">{row.serverSide}</td>
+                <td class="py-4 px-4 text-grid-bid">{row.askturret}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

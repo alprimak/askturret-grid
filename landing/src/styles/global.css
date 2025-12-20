@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-grid-bg text-grid-text antialiased;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  code {
+    @apply font-mono;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg bg-grid-accent text-white font-medium transition-all hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-grid-accent focus:ring-offset-2 focus:ring-offset-grid-bg;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg border border-grid-border text-grid-text font-medium transition-all hover:bg-grid-surface focus:outline-none focus:ring-2 focus:ring-grid-accent focus:ring-offset-2 focus:ring-offset-grid-bg;
+  }
+
+  .code-block {
+    @apply bg-grid-surface border border-grid-border rounded-lg p-4 font-mono text-sm overflow-x-auto;
+  }
+
+  .feature-card {
+    @apply bg-grid-surface border border-grid-border rounded-xl p-6 hover:border-grid-accent/50 transition-colors;
+  }
+}
+
+/* Syntax highlighting overrides */
+.shiki {
+  @apply bg-grid-surface !important;
+}

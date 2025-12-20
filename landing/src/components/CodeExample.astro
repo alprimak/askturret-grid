@@ -1,0 +1,42 @@
+---
+---
+
+<section id="code" class="py-24 px-4">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-16">
+      <h2 class="text-4xl font-bold text-grid-text mb-4">Simple API</h2>
+      <p class="text-xl text-grid-muted max-w-2xl mx-auto">
+        Get started in minutes with a familiar React component API
+      </p>
+    </div>
+
+    <div class="code-block">
+      <pre class="text-sm leading-relaxed"><code class="language-tsx"><span class="text-grid-accent">import</span> <span class="text-grid-text">{'{ DataGrid }'}</span> <span class="text-grid-accent">from</span> <span class="text-grid-bid">'@askturret/grid'</span>;
+<span class="text-grid-accent">import</span> <span class="text-grid-bid">'@askturret/grid/styles.css'</span>;
+
+<span class="text-grid-accent">const</span> <span class="text-grid-text">columns</span> = [
+  {'{ field: \'symbol\', header: \'Symbol\', sortable: true },'}
+  {'{ field: \'price\', header: \'Price\', flashOnChange: true },'}
+  {'{ field: \'volume\', header: \'Volume\', align: \'right\' },'}
+];
+
+<span class="text-grid-accent">function</span> <span class="text-grid-text">TradingGrid</span>() {'{'}
+  <span class="text-grid-accent">return</span> (
+    <span class="text-grid-muted">&lt;</span><span class="text-grid-accent">DataGrid</span>
+      <span class="text-grid-text">data</span>=<span class="text-grid-text">{'{positions}'}</span>
+      <span class="text-grid-text">columns</span>=<span class="text-grid-text">{'{columns}'}</span>
+      <span class="text-grid-text">rowKey</span>=<span class="text-grid-bid">"id"</span>
+      <span class="text-grid-text">showFilter</span>
+      <span class="text-grid-text">resizable</span>
+    <span class="text-grid-muted">/&gt;</span>
+  );
+{'}'}</code></pre>
+    </div>
+
+    <div class="mt-8 text-center">
+      <a href="https://alprimak.github.io/askturret-grid/getting-started/quick-start" class="text-grid-accent hover:underline">
+        View full documentation →
+      </a>
+    </div>
+  </div>
+</section>
