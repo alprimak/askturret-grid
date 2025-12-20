@@ -89,7 +89,9 @@ describe('exportToCSV', () => {
     });
 
     it('handles null and undefined values', () => {
-      const data = [{ id: 1, name: null as unknown as string, value: undefined as unknown as number, status: 'active' }];
+      const data = [
+        { id: 1, name: null as unknown as string, value: undefined as unknown as number, status: 'active' },
+      ];
       const csv = exportToCSV(data, columns, { download: false });
 
       expect(csv).toBe('ID,Name,Value,Status\n1,,,active');
