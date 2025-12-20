@@ -7,6 +7,14 @@ dist/
 # Demo build
 demo/dist/
 
+# Docs build
+docs-site/.vitepress/cache/
+docs-site/.vitepress/dist/
+
+# Landing build
+landing/dist/
+landing/.astro/
+
 # Compiled JS from TypeScript (in demo)
 demo/src/**/*.js
 
