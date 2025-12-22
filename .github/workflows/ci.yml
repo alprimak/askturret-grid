@@ -34,7 +34,7 @@ jobs:
         run: npm run test:run
 
       - name: Build package
-        run: npm run build
+        run: npm run build:pkg
 
   build-demo:
     name: Build Demo
@@ -54,7 +54,7 @@ jobs:
         run: npm ci
 
       - name: Build package
-        run: npm run build
+        run: npm run build:pkg
 
       - name: Install demo dependencies
         working-directory: demo
