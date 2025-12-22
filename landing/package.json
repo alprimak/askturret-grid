@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@askturret/grid": "^0.1.1",
-    "@askturret/grid-wasm": "^0.1.0",
+    "@askturret/grid-wasm": "^0.1.1",
     "@astrojs/react": "^4.4.2",
     "@astrojs/tailwind": "^6.0.2",
     "astro": "^5.16.6",

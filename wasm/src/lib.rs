@@ -279,8 +279,454 @@ impl TrigramIndex {
 }
 
 // ============================================================================
+// GridState - Persistent state for grid operations (used by GridCore.ts)
+// ============================================================================
+
+/// Sort direction enum for GridState (includes None)
+#[wasm_bindgen]
+#[derive(Clone, Copy, PartialEq)]
+pub enum SortDir {
+    Asc = 0,
+    Desc = 1,
+    None = 2,
+}
+
+/// GridState - Keeps grid data in WASM memory for efficient filtering/sorting
+#[wasm_bindgen]
+pub struct GridState {
+    columns: Vec<Vec<String>>,
+    sort_col: i32,
+    sort_dir: SortDir,
+    filter: String,
+    view_cache: Option<Vec<u32>>,
+}
+
+#[wasm_bindgen]
+impl GridState {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> GridState {
+        GridState {
+            columns: Vec::new(),
+            sort_col: -1,
+            sort_dir: SortDir::None,
+            filter: String::new(),
+            view_cache: None,
+        }
+    }
+
+    pub fn set_data(&mut self, columns: &Array) {
+        let col_count = columns.length() as usize;
+        self.columns = Vec::with_capacity(col_count);
+
+        for c in 0..col_count {
+            let col_arr = Array::from(&columns.get(c as u32));
+            let row_count = col_arr.length() as usize;
+            let mut col_data = Vec::with_capacity(row_count);
+
+            for r in 0..row_count {
+                col_data.push(col_arr.get(r as u32).as_string().unwrap_or_default());
+            }
+            self.columns.push(col_data);
+        }
+        self.view_cache = None;
+    }
+
+    pub fn set_sort(&mut self, col: i32, direction: SortDir) {
+        self.sort_col = col;
+        self.sort_dir = direction;
+        self.view_cache = None;
+    }
+
+    pub fn set_filter(&mut self, search: &str) {
+        self.filter = search.to_lowercase();
+        self.view_cache = None;
+    }
+
+    pub fn get_view(&mut self) -> Uint32Array {
+        if self.view_cache.is_none() {
+            self.compute_view();
+        }
+        let indices = self.view_cache.as_ref().unwrap();
+        let arr = Uint32Array::new_with_length(indices.len() as u32);
+        for (i, &idx) in indices.iter().enumerate() {
+            arr.set_index(i as u32, idx);
+        }
+        arr
+    }
+
+    pub fn get_view_count(&mut self) -> usize {
+        if self.view_cache.is_none() {
+            self.compute_view();
+        }
+        self.view_cache.as_ref().map(|v| v.len()).unwrap_or(0)
+    }
+
+    pub fn row_count(&self) -> usize {
+        self.columns.first().map(|c| c.len()).unwrap_or(0)
+    }
+
+    pub fn col_count(&self) -> usize {
+        self.columns.len()
+    }
+
+    fn compute_view(&mut self) {
+        let row_count = self.row_count();
+        let mut indices: Vec<u32> = (0..row_count as u32).collect();
+
+        // Filter
+        if !self.filter.is_empty() {
+            indices.retain(|&row| {
+                self.columns.iter().any(|col| {
+                    col.get(row as usize)
+                        .map(|v| v.to_lowercase().contains(&self.filter))
+                        .unwrap_or(false)
+                })
+            });
+        }
+
+        // Sort
+        if self.sort_col >= 0 && self.sort_dir != SortDir::None {
+            if let Some(col) = self.columns.get(self.sort_col as usize) {
+                let dir = self.sort_dir;
+                indices.sort_by(|&a, &b| {
+                    let va = col.get(a as usize).map(|s| s.as_str()).unwrap_or("");
+                    let vb = col.get(b as usize).map(|s| s.as_str()).unwrap_or("");
+
+                    // Try numeric comparison first
+                    let cmp = match (va.parse::<f64>(), vb.parse::<f64>()) {
+                        (Ok(na), Ok(nb)) => na.partial_cmp(&nb).unwrap_or(std::cmp::Ordering::Equal),
+                        _ => va.cmp(vb),
+                    };
+
+                    match dir {
+                        SortDir::Desc => cmp.reverse(),
+                        _ => cmp,
+                    }
+                });
+            }
+        }
+
+        self.view_cache = Some(indices);
+    }
+}
+
+/// IndexedGridState - GridState with trigram indexing for fast filtering
+#[wasm_bindgen]
+pub struct IndexedGridState {
+    columns: Vec<Vec<String>>,
+    trigram_index: HashMap<String, Vec<u32>>,
+    sort_col: i32,
+    sort_dir: SortDir,
+    filter: String,
+    view_cache: Option<Vec<u32>>,
+}
+
+#[wasm_bindgen]
+impl IndexedGridState {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> IndexedGridState {
+        IndexedGridState {
+            columns: Vec::new(),
+            trigram_index: HashMap::new(),
+            sort_col: -1,
+            sort_dir: SortDir::None,
+            filter: String::new(),
+            view_cache: None,
+        }
+    }
+
+    pub fn set_data(&mut self, columns: &Array) {
+        let col_count = columns.length() as usize;
+        self.columns = Vec::with_capacity(col_count);
+        self.trigram_index.clear();
+
+        for c in 0..col_count {
+            let col_arr = Array::from(&columns.get(c as u32));
+            let row_count = col_arr.length() as usize;
+            let mut col_data = Vec::with_capacity(row_count);
+
+            for r in 0..row_count {
+                let val = col_arr.get(r as u32).as_string().unwrap_or_default();
+
+                // Build trigram index
+                for trigram in generate_trigrams(&val) {
+                    self.trigram_index.entry(trigram)
+                        .or_insert_with(Vec::new)
+                        .push(r as u32);
+                }
+
+                col_data.push(val);
+            }
+            self.columns.push(col_data);
+        }
+        self.view_cache = None;
+    }
+
+    pub fn set_sort(&mut self, col: i32, direction: SortDir) {
+        self.sort_col = col;
+        self.sort_dir = direction;
+        self.view_cache = None;
+    }
+
+    pub fn set_filter(&mut self, search: &str) {
+        self.filter = search.to_lowercase();
+        self.view_cache = None;
+    }
+
+    pub fn get_view(&mut self) -> Uint32Array {
+        if self.view_cache.is_none() {
+            self.compute_view();
+        }
+        let indices = self.view_cache.as_ref().unwrap();
+        let arr = Uint32Array::new_with_length(indices.len() as u32);
+        for (i, &idx) in indices.iter().enumerate() {
+            arr.set_index(i as u32, idx);
+        }
+        arr
+    }
+
+    pub fn get_view_count(&mut self) -> usize {
+        if self.view_cache.is_none() {
+            self.compute_view();
+        }
+        self.view_cache.as_ref().map(|v| v.len()).unwrap_or(0)
+    }
+
+    pub fn row_count(&self) -> usize {
+        self.columns.first().map(|c| c.len()).unwrap_or(0)
+    }
+
+    pub fn col_count(&self) -> usize {
+        self.columns.len()
+    }
+
+    fn compute_view(&mut self) {
+        let row_count = self.row_count();
+
+        // Filter using trigram index
+        let mut indices: Vec<u32> = if self.filter.is_empty() {
+            (0..row_count as u32).collect()
+        } else {
+            let query_trigrams = generate_trigrams(&self.filter);
+
+            if query_trigrams.is_empty() || query_trigrams[0] == self.filter {
+                // Short query - linear scan
+                (0..row_count as u32)
+                    .filter(|&row| {
+                        self.columns.iter().any(|col| {
+                            col.get(row as usize)
+                                .map(|v| v.to_lowercase().contains(&self.filter))
+                                .unwrap_or(false)
+                        })
+                    })
+                    .collect()
+            } else {
+                // Use trigram index for candidate selection
+                let mut candidates: Option<Vec<u32>> = None;
+
+                for trigram in &query_trigrams {
+                    if let Some(matches) = self.trigram_index.get(trigram) {
+                        candidates = Some(match candidates {
+                            None => matches.clone(),
+                            Some(existing) => {
+                                existing.into_iter()
+                                    .filter(|idx| matches.contains(idx))
+                                    .collect()
+                            }
+                        });
+                    } else {
+                        candidates = Some(vec![]);
+                        break;
+                    }
+                }
+
+                // Verify candidates
+                candidates.unwrap_or_default()
+                    .into_iter()
+                    .filter(|&row| {
+                        self.columns.iter().any(|col| {
+                            col.get(row as usize)
+                                .map(|v| v.to_lowercase().contains(&self.filter))
+                                .unwrap_or(false)
+                        })
+                    })
+                    .collect()
+            }
+        };
+
+        // Sort
+        if self.sort_col >= 0 && self.sort_dir != SortDir::None {
+            if let Some(col) = self.columns.get(self.sort_col as usize) {
+                let dir = self.sort_dir;
+                indices.sort_by(|&a, &b| {
+                    let va = col.get(a as usize).map(|s| s.as_str()).unwrap_or("");
+                    let vb = col.get(b as usize).map(|s| s.as_str()).unwrap_or("");
+
+                    let cmp = match (va.parse::<f64>(), vb.parse::<f64>()) {
+                        (Ok(na), Ok(nb)) => na.partial_cmp(&nb).unwrap_or(std::cmp::Ordering::Equal),
+                        _ => va.cmp(vb),
+                    };
+
+                    match dir {
+                        SortDir::Desc => cmp.reverse(),
+                        _ => cmp,
+                    }
+                });
+            }
+        }
+
+        self.view_cache = Some(indices);
+    }
+}
+
+// ============================================================================
 // Benchmarking functions
 // ============================================================================
+
+#[wasm_bindgen]
+pub fn bench_grid_state(count: u32) -> f64 {
+    use js_sys::Date;
+
+    let columns = Array::new_with_length(2);
+    let col0 = Array::new_with_length(count);
+    let col1 = Array::new_with_length(count);
+
+    for i in 0..count {
+        col0.set(i, JsValue::from_str(&format!("name_{}", i % 1000)));
+        col1.set(i, JsValue::from_str(&format!("{}", i % 10000)));
+    }
+    columns.set(0, col0.into());
+    columns.set(1, col1.into());
+
+    let start = Date::now();
+    let mut state = GridState::new();
+    state.set_data(&columns);
+    state.set_filter("name_42");
+    state.set_sort(1, SortDir::Desc);
+    let _view = state.get_view();
+    Date::now() - start
+}
+
+#[wasm_bindgen]
+pub fn bench_filter_only(count: u32) -> f64 {
+    use js_sys::Date;
+
+    let columns = Array::new_with_length(1);
+    let col0 = Array::new_with_length(count);
+    for i in 0..count {
+        col0.set(i, JsValue::from_str(&format!("item_{}", i % 1000)));
+    }
+    columns.set(0, col0.into());
+
+    let mut state = GridState::new();
+    state.set_data(&columns);
+
+    let start = Date::now();
+    state.set_filter("item_42");
+    let _view = state.get_view();
+    Date::now() - start
+}
+
+#[wasm_bindgen]
+pub fn bench_sort_only(count: u32) -> f64 {
+    use js_sys::Date;
+
+    let columns = Array::new_with_length(1);
+    let col0 = Array::new_with_length(count);
+    for i in 0..count {
+        col0.set(i, JsValue::from_str(&format!("{}", (i * 7) % 10000)));
+    }
+    columns.set(0, col0.into());
+
+    let mut state = GridState::new();
+    state.set_data(&columns);
+
+    let start = Date::now();
+    state.set_sort(0, SortDir::Asc);
+    let _view = state.get_view();
+    Date::now() - start
+}
+
+#[wasm_bindgen]
+pub fn bench_indexed_filter_with_build(count: u32) -> f64 {
+    use js_sys::Date;
+
+    let columns = Array::new_with_length(1);
+    let col0 = Array::new_with_length(count);
+    for i in 0..count {
+        col0.set(i, JsValue::from_str(&format!("company_{}_stock", i % 1000)));
+    }
+    columns.set(0, col0.into());
+
+    let start = Date::now();
+    let mut state = IndexedGridState::new();
+    state.set_data(&columns);
+    state.set_filter("company_42");
+    let _view = state.get_view();
+    Date::now() - start
+}
+
+#[wasm_bindgen]
+pub fn bench_indexed_filter_only(count: u32) -> f64 {
+    use js_sys::Date;
+
+    let columns = Array::new_with_length(1);
+    let col0 = Array::new_with_length(count);
+    for i in 0..count {
+        col0.set(i, JsValue::from_str(&format!("company_{}_stock", i % 1000)));
+    }
+    columns.set(0, col0.into());
+
+    let mut state = IndexedGridState::new();
+    state.set_data(&columns);
+
+    let start = Date::now();
+    state.set_filter("company_42");
+    let _view = state.get_view();
+    Date::now() - start
+}
+
+#[wasm_bindgen]
+pub fn bench_scan_filter(count: u32) -> f64 {
+    use js_sys::Date;
+
+    let columns = Array::new_with_length(1);
+    let col0 = Array::new_with_length(count);
+    for i in 0..count {
+        col0.set(i, JsValue::from_str(&format!("company_{}_stock", i % 1000)));
+    }
+    columns.set(0, col0.into());
+
+    let mut state = GridState::new();
+    state.set_data(&columns);
+
+    let start = Date::now();
+    state.set_filter("company_42");
+    let _view = state.get_view();
+    Date::now() - start
+}
+
+#[wasm_bindgen]
+pub fn bench_repeated_filter(count: u32, iterations: u32) -> f64 {
+    use js_sys::Date;
+
+    let columns = Array::new_with_length(1);
+    let col0 = Array::new_with_length(count);
+    for i in 0..count {
+        col0.set(i, JsValue::from_str(&format!("company_{}_stock", i % 1000)));
+    }
+    columns.set(0, col0.into());
+
+    let mut state = IndexedGridState::new();
+    state.set_data(&columns);
+
+    let start = Date::now();
+    for i in 0..iterations {
+        state.set_filter(&format!("company_{}", i % 100));
+        let _view = state.get_view();
+    }
+    Date::now() - start
+}
 
 #[wasm_bindgen]
 pub fn bench_sort(count: u32) -> f64 {
