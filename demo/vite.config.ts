@@ -8,8 +8,8 @@ export default defineConfig({
     target: 'esnext',
     outDir: 'dist',
     rollupOptions: {
-      // askturret-grid-core is optional WASM - the grid falls back to JS
-      external: ['askturret-grid-core'],
+      // askturret-grid-wasm is optional WASM acceleration - the grid falls back to JS
+      external: ['askturret-grid-wasm'],
     },
   },
 });

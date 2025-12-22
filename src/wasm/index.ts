@@ -1,35 +1,35 @@
 /**
  * WASM bridge for high-performance sorting and filtering
  * Falls back to pure JavaScript if WASM is not available
+ *
+ * Install WASM acceleration: npm install askturret-grid-wasm
  */
 
 export type SortDirection = 'asc' | 'desc';
 export type FilterMode = 'contains' | 'equals' | 'startsWith' | 'endsWith';
 
-// WASM module types (matching generated .d.ts)
+// WASM module types (matching askturret-grid-wasm)
 interface WasmIndexResult {
   readonly indices: Uint32Array;
   readonly len: number;
-  free(): void;
+  free?(): void;
 }
 
 interface WasmModule {
-  init(): void;
-  sort_values(values: unknown[], direction: number): WasmIndexResult;
-  sort_multi_column(columns: unknown[][], directions: unknown[]): WasmIndexResult;
-  filter_values(columns: unknown[][], search: string, mode: number): WasmIndexResult;
-  filter_range(values: unknown[], min: number, max: number): WasmIndexResult;
-  filter_and_sort(
-    sortValues: unknown[],
-    filterColumns: unknown[][],
-    search: string,
-    direction: number
-  ): WasmIndexResult;
+  default(input?: unknown): Promise<unknown>;
+  sort_numbers(values: Float64Array, direction: number): WasmIndexResult;
+  sort_strings(values: unknown[], direction: number): WasmIndexResult;
+  filter_strings(values: unknown[], search: string, mode: number): WasmIndexResult;
+  filter_range(values: Float64Array, min: number, max: number): WasmIndexResult;
   bench_sort(count: number): number;
   bench_filter(count: number): number;
+  bench_trigram(count: number): number;
   SortDirection: { Asc: 0; Desc: 1 };
   FilterMode: { Contains: 0; Equals: 1; StartsWith: 2; EndsWith: 3 };
-  default(input?: unknown): Promise<unknown>;
+  TrigramIndex: new (values: unknown[]) => {
+    search(query: string): WasmIndexResult;
+    len(): number;
+  };
 }
 
 let wasmModule: WasmModule | null = null;
@@ -62,7 +62,7 @@ async function loadWasmModule(): Promise<WasmModule | null> {
   try {
     // Dynamic import of the WASM package
     // @ts-expect-error - module may not exist, that's ok
-    const wasm = await import('askturret-grid-core');
+    const wasm = await import('askturret-grid-wasm');
 
     // Initialize the WASM module with optional custom URL
     if (wasm.default && typeof wasm.default === 'function') {
@@ -73,16 +73,11 @@ async function loadWasmModule(): Promise<WasmModule | null> {
       }
     }
 
-    // Call init() to set up panic hook
-    if (wasm.init && typeof wasm.init === 'function') {
-      wasm.init();
-    }
-
     wasmModule = wasm as WasmModule;
-    console.log('[grid-core] WASM module loaded successfully');
+    console.log('[askturret-grid] WASM module loaded successfully');
     return wasmModule;
   } catch (error) {
-    console.warn('[grid-core] WASM module not available, using JS fallback:', error);
+    console.warn('[askturret-grid] WASM module not available, using JS fallback:', error);
     wasmLoadFailed = true;
     return null;
   }
@@ -210,10 +205,20 @@ function jsFilterRange(values: number[], min: number, max: number): number[] {
  */
 export function sortValues<T>(values: T[], direction: SortDirection = 'asc'): number[] {
   if (wasmModule) {
-    const result = wasmModule.sort_values(values, directionToNumber(direction));
-    const indices = Array.from(result.indices);
-    result.free();
-    return indices;
+    // Check if values are numbers
+    if (values.length > 0 && typeof values[0] === 'number') {
+      const floatArr = new Float64Array(values as unknown as number[]);
+      const result = wasmModule.sort_numbers(floatArr, directionToNumber(direction));
+      const indices = Array.from(result.indices);
+      if (result.free) result.free();
+      return indices;
+    } else {
+      // String values
+      const result = wasmModule.sort_strings(values as unknown[], directionToNumber(direction));
+      const indices = Array.from(result.indices);
+      if (result.free) result.free();
+      return indices;
+    }
   }
   return jsSortValues(values, direction);
 }
@@ -267,10 +272,13 @@ export function sortMultiColumn<T>(columns: T[][], directions: SortDirection[]):
  * Filter values by search string
  */
 export function filterValues<T>(columns: T[][], search: string, mode: FilterMode = 'contains'): number[] {
-  if (wasmModule) {
-    const result = wasmModule.filter_values(columns, search, filterModeToNumber(mode));
+  if (wasmModule && columns.length > 0) {
+    // Flatten columns for WASM - search across all columns
+    // For now, use first column only with WASM (JS fallback handles multiple columns)
+    const firstCol = columns[0];
+    const result = wasmModule.filter_strings(firstCol as unknown[], search, filterModeToNumber(mode));
     const indices = Array.from(result.indices);
-    result.free();
+    if (result.free) result.free();
     return indices;
   }
   return jsFilterValues(columns, search, mode);
@@ -281,9 +289,10 @@ export function filterValues<T>(columns: T[][], search: string, mode: FilterMode
  */
 export function filterRange(values: number[], min: number = -Infinity, max: number = Infinity): number[] {
   if (wasmModule) {
-    const result = wasmModule.filter_range(values, min, max);
+    const floatArr = new Float64Array(values);
+    const result = wasmModule.filter_range(floatArr, min, max);
     const indices = Array.from(result.indices);
-    result.free();
+    if (result.free) result.free();
     return indices;
   }
   return jsFilterRange(values, min, max);

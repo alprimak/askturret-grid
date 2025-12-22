@@ -1,0 +1,72 @@
+name: Publish WASM to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not publish)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM
+        run: |
+          cd wasm
+          wasm-pack build --target web --out-dir pkg --release
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Prepare package
+        run: |
+          cd wasm
+          # Copy package.json fields to pkg/package.json
+          node -e "
+            const pkg = require('./package.json');
+            const wasmPkg = require('./pkg/package.json');
+            wasmPkg.name = pkg.name;
+            wasmPkg.version = pkg.version;
+            wasmPkg.description = pkg.description;
+            wasmPkg.license = pkg.license;
+            wasmPkg.author = pkg.author;
+            wasmPkg.repository = pkg.repository;
+            wasmPkg.bugs = pkg.bugs;
+            wasmPkg.homepage = pkg.homepage;
+            wasmPkg.keywords = pkg.keywords;
+            require('fs').writeFileSync('./pkg/package.json', JSON.stringify(wasmPkg, null, 2));
+          "
+
+      - name: Publish (dry run)
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          cd wasm/pkg
+          npm publish --dry-run --access public
+
+      - name: Publish to npm
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          cd wasm/pkg
+          npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

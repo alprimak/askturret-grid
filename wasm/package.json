@@ -1,0 +1,41 @@
+{
+  "name": "askturret-grid-wasm",
+  "version": "0.1.0",
+  "description": "High-performance WASM acceleration for @askturret/grid - sorting, filtering, and trigram indexing",
+  "license": "MIT",
+  "author": "AskTurret",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alprimak/askturret-grid"
+  },
+  "bugs": {
+    "url": "https://github.com/alprimak/askturret-grid/issues"
+  },
+  "homepage": "https://grid.askturret.com",
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "rust",
+    "grid",
+    "sorting",
+    "filtering",
+    "trigram",
+    "performance"
+  ],
+  "files": [
+    "pkg/*"
+  ],
+  "main": "pkg/askturret_grid_wasm.js",
+  "module": "pkg/askturret_grid_wasm.js",
+  "types": "pkg/askturret_grid_wasm.d.ts",
+  "sideEffects": [
+    "pkg/askturret_grid_wasm.js"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg",
+    "build:bundler": "wasm-pack build --target bundler --out-dir pkg",
+    "build:nodejs": "wasm-pack build --target nodejs --out-dir pkg-node",
+    "test": "wasm-pack test --headless --chrome"
+  },
+  "devDependencies": {}
+}
