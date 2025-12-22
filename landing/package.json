@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build && npm run build:demo",
-    "build:demo": "cd ../demo && npm install --include=dev && npx vite build && cp -r dist ../landing/dist/demo",
+    "build:demo": "cd .. && npm run build && cd demo && npm install --include=dev && npx vite build && cp -r dist ../landing/dist/demo",
     "preview": "astro preview",
     "start": "serve dist -s -l ${PORT:-3000}"
   },
