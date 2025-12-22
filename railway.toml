@@ -3,16 +3,11 @@
 # Builds both landing page and demo app
 
 [build]
-builder = "nixpacks"
-buildCommand = """
-cd landing && npm install --include=dev && npm run build && \
-cd ../demo && npm install --include=dev && npm run build && \
-cp -r dist ../landing/dist/demo
-"""
+builder = "NIXPACKS"
+nixpacksConfigPath = "nixpacks.toml"
 watchPatterns = ["landing/**", "demo/**", "src/**"]
 
 [deploy]
-startCommand = "cd landing && node_modules/.bin/serve dist -s -l $PORT"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
