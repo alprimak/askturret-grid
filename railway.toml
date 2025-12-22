@@ -1,0 +1,14 @@
+# Railway config for grid-landing service
+# This file points to the landing/ subdirectory
+
+[build]
+builder = "nixpacks"
+buildCommand = "cd landing && npm install && npm run build"
+watchPatterns = ["landing/**"]
+
+[deploy]
+startCommand = "cd landing && node_modules/.bin/serve dist -s -l $PORT"
+healthcheckPath = "/"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
