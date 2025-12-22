@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { initWasm, isWasmAvailable, sortValues, filterValues } from '@askturret/grid';
+import { initWasm, isWasmAvailable, sortValues, GridCore } from '@askturret/grid';
 
 interface BenchmarkResults {
   sortJs: number;
   sortWasm: number | null;
   filterJs: number;
   filterWasm: number | null;
+  indexBuildTime?: number;
 }
 
 // Generate test data once, reuse for both JS and WASM
@@ -97,25 +98,44 @@ export function BenchmarkRunner() {
       await new Promise((r) => setTimeout(r, 10));
 
       // =====================
-      // FILTER BENCHMARK
+      // FILTER BENCHMARK (with trigram index)
       // =====================
       // Generate string data (shared for both tests)
       const stringData = generateStringData(rowCount);
       const searchTerm = 'item-50';
 
-      // JS Filter
+      // JS Filter (linear scan)
       const filterJsStart = performance.now();
       jsFilterIndices(stringData, searchTerm);
       const filterJs = performance.now() - filterJsStart;
 
       await new Promise((r) => setTimeout(r, 10));
 
-      // WASM Filter (using the library's filterValues which uses WASM internally)
+      // WASM Filter using GridCore (trigram-indexed)
       let filterWasm: number | null = null;
+      let indexBuildTime: number | undefined;
+
       if (wasmLoaded) {
-        const filterWasmStart = performance.now();
-        filterValues([stringData], searchTerm, 'contains');
-        filterWasm = performance.now() - filterWasmStart;
+        // Create GridCore and load data (builds trigram index)
+        const core = new GridCore();
+        await core.init();
+
+        if (core.isWasm()) {
+          // Measure index build time separately
+          const buildStart = performance.now();
+          core.setData([stringData]); // Column-major format
+          indexBuildTime = performance.now() - buildStart;
+
+          await new Promise((r) => setTimeout(r, 10));
+
+          // Measure filter time (using pre-built trigram index)
+          const filterWasmStart = performance.now();
+          core.setFilter(searchTerm);
+          core.getView(); // Force computation
+          filterWasm = performance.now() - filterWasmStart;
+
+          core.dispose();
+        }
       }
 
       setResults({
@@ -123,6 +143,7 @@ export function BenchmarkRunner() {
         sortWasm,
         filterJs,
         filterWasm,
+        indexBuildTime,
       });
     } catch (e) {
       console.error('Benchmark error:', e);
@@ -261,7 +282,7 @@ export function BenchmarkRunner() {
             {/* Filter */}
             <div className="result-card">
               <div className="result-header">
-                <span className="result-title">Filter (string search)</span>
+                <span className="result-title">Filter (trigram index)</span>
                 {results.filterWasm !== null && (
                   <span className={`speedup ${getSpeedupClass(results.filterJs, results.filterWasm)}`}>
                     {getSpeedup(results.filterJs, results.filterWasm)}
@@ -270,7 +291,7 @@ export function BenchmarkRunner() {
               </div>
               <div className="result-bars">
                 <div className="bar-row">
-                  <span className="bar-label">JavaScript</span>
+                  <span className="bar-label">JS (scan)</span>
                   <div className="bar-container">
                     <div
                       className={`bar js`}
@@ -281,7 +302,7 @@ export function BenchmarkRunner() {
                 </div>
                 {results.filterWasm !== null && (
                   <div className="bar-row">
-                    <span className="bar-label">WASM</span>
+                    <span className="bar-label">WASM (idx)</span>
                     <div className="bar-container">
                       <div
                         className={`bar wasm ${getGrade(results.filterWasm)}`}
@@ -294,6 +315,11 @@ export function BenchmarkRunner() {
                   </div>
                 )}
               </div>
+              {results.indexBuildTime !== undefined && (
+                <div className="index-note">
+                  Index build: {formatTime(results.indexBuildTime)} (one-time cost)
+                </div>
+              )}
             </div>
           </div>
 

@@ -280,6 +280,15 @@
   text-align: right;
 }
 
+.index-note {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #2a2a3a;
+  font-size: 0.75rem;
+  color: #71717a;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* Summary */
 .results-summary {
   display: flex;
