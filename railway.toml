@@ -3,11 +3,11 @@
 
 [build]
 builder = "nixpacks"
-# Demo build requires @askturret/grid from npm
-# After first npm publish, uncomment the demo build lines:
-# cd ../demo && npm install && npm run build && \
-# cp -r dist ../landing/dist/demo
-buildCommand = "cd landing && npm install && npm run build"
+buildCommand = """
+cd landing && npm install && npm run build && \
+cd ../demo && npm install && npm run build && \
+cp -r dist ../landing/dist/demo
+"""
 watchPatterns = ["landing/**", "demo/**", "src/**"]
 
 [deploy]
