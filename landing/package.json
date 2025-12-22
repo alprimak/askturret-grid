@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build && npm run build:demo",
-    "build:demo": "cd ../demo && npm install && npm run build && mkdir -p ../landing/dist/demo && cp -r dist/* ../landing/dist/demo/ && echo 'Demo files:' && ls -la ../landing/dist/demo/",
+    "build:demo": "cd .. && npm install && npm run build && cd demo && npm install && npm run build && mkdir -p ../landing/dist/demo && cp -r dist/* ../landing/dist/demo/ && echo 'Demo files:' && ls -la ../landing/dist/demo/",
     "preview": "astro preview",
     "start": "npx serve dist -s -l $PORT"
   },
