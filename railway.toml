@@ -1,0 +1,10 @@
+# Railway config for grid-landing service
+# Keep root directory at repo root (not landing/)
+
+[build]
+buildCommand = "cd landing && npm install && npm run build"
+
+[deploy]
+startCommand = "cd landing && npm run start"
+healthcheckPath = "/"
+healthcheckTimeout = 300
