@@ -28,6 +28,10 @@
   "scripts": {
     "//build": "NOTE: When adding new CSS files, update both the cat command below AND exports in package.json",
     "build": "tsc && cat src/styles/grid.css src/styles/orderbook.css src/styles/topmovers.css src/styles/timesales.css src/styles/positionladder.css > dist/styles.css",
+    "build:landing": "cd landing && npm install && npm run build",
+    "build:demo": "cd demo && npm install && npm run build && cp -r dist ../landing/dist/demo",
+    "build:railway": "npm run build:landing && npm run build:demo",
+    "start": "cd landing && npx serve dist -s -l ${PORT:-3000}",
     "dev": "tsc --watch",
     "demo": "cd demo && npm run dev",
     "test": "vitest",

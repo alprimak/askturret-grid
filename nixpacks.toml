@@ -2,18 +2,9 @@
 [phases.setup]
 nixPkgs = ["nodejs_20", "npm-10_x"]
 
-[phases.install]
-cmds = [
-  "cd landing && npm install",
-  "cd demo && npm install"
-]
-
+# Override the default build to use our custom script
 [phases.build]
-cmds = [
-  "cd landing && npm run build",
-  "cd demo && npm run build",
-  "cp -r demo/dist landing/dist/demo"
-]
+cmds = ["npm run build:railway"]
 
 [start]
-cmd = "cd landing && npx serve dist -s -l ${PORT:-3000}"
+cmd = "npm run start"
