@@ -55,7 +55,7 @@ export {
   type FilterMode,
 } from './wasm';
 
-// GridCore - persistent WASM state for high-performance grids
+// GridCore - persistent WASM state for high-performance grids (legacy)
 export {
   GridCore,
   initGridCore,
@@ -68,3 +68,14 @@ export {
   benchScanFilter,
   benchRepeatedFilter,
 } from './wasm/GridCore';
+
+// WasmGridStore - new WASM-first architecture
+// Data lives in WASM, JS only receives indices and visible rows
+export {
+  WasmGridStore,
+  initWasmStore,
+  isWasmStoreAvailable,
+  type ColumnSchema,
+  type RowUpdate,
+  type SortDirection as WasmSortDirection,
+} from './wasm/WasmGridStore';
