@@ -11,15 +11,7 @@ export default defineConfig({
   site: 'https://grid.askturret.com',
   vite: {
     ssr: {
-      noExternal: ['@askturret/grid'],
-    },
-    build: {
-      rollupOptions: {
-        external: ['@askturret/grid-wasm'],
-      },
-    },
-    optimizeDeps: {
-      exclude: ['@askturret/grid-wasm'],
+      noExternal: ['@askturret/grid', '@askturret/grid-wasm'],
     },
   },
 });
