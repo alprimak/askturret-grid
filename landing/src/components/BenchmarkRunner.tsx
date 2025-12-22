@@ -1,96 +1,39 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  initGridCore,
-  isGridCoreAvailable,
-  benchSortOnly,
-  benchIndexedFilterOnly,
-  benchScanFilter,
-} from '@askturret/grid';
+import { initWasm, isWasmAvailable, sortValues, filterValues } from '@askturret/grid';
 
 interface BenchmarkResults {
   sortJs: number;
   sortWasm: number | null;
-  filterScanJs: number;
-  filterScanWasm: number | null;
-  filterIndexedJs: number;
-  filterIndexedWasm: number | null;
+  filterJs: number;
+  filterWasm: number | null;
 }
 
-// Pure JS benchmarks
-function jsBenchSort(count: number): number {
-  const values = Array.from({ length: count }, () => Math.random() * 1000);
-  const indices = Array.from({ length: count }, (_, i) => i);
-  const start = performance.now();
+// Generate test data once, reuse for both JS and WASM
+function generateNumericData(count: number): number[] {
+  return Array.from({ length: count }, () => Math.random() * 10000);
+}
+
+function generateStringData(count: number): string[] {
+  return Array.from({ length: count }, (_, i) => `item-${i % 100}-${i}`);
+}
+
+// Pure JS sort (indices sort)
+function jsSortIndices(values: number[]): number[] {
+  const indices = Array.from({ length: values.length }, (_, i) => i);
   indices.sort((a, b) => values[a] - values[b]);
-  return performance.now() - start;
+  return indices;
 }
 
-function jsBenchScanFilter(count: number): number {
-  const strings = Array.from({ length: count }, (_, i) => `item-${i % 100}-${i}`);
-  const start = performance.now();
-  const search = 'item-50';
-  const filtered = [];
-  for (let i = 0; i < count; i++) {
-    if (strings[i].includes(search)) {
-      filtered.push(i);
+// Pure JS filter
+function jsFilterIndices(values: string[], search: string): number[] {
+  const searchLower = search.toLowerCase();
+  const result: number[] = [];
+  for (let i = 0; i < values.length; i++) {
+    if (values[i].toLowerCase().includes(searchLower)) {
+      result.push(i);
     }
   }
-  return performance.now() - start;
-}
-
-function jsBenchIndexedFilter(count: number): number {
-  const strings = Array.from({ length: count }, (_, i) => `item-${i % 100}-${i}`);
-
-  // Build trigram index
-  const index = new Map<string, number[]>();
-  for (let i = 0; i < count; i++) {
-    const str = strings[i];
-    for (let j = 0; j <= str.length - 3; j++) {
-      const trigram = str.substring(j, j + 3);
-      if (!index.has(trigram)) {
-        index.set(trigram, []);
-      }
-      index.get(trigram)!.push(i);
-    }
-  }
-
-  // Filter using index
-  const filterStart = performance.now();
-  const search = 'item-50';
-  const searchTrigrams: string[] = [];
-  for (let j = 0; j <= search.length - 3; j++) {
-    searchTrigrams.push(search.substring(j, j + 3));
-  }
-
-  let candidates: Set<number> | null = null;
-  for (const trigram of searchTrigrams) {
-    const rows = index.get(trigram);
-    if (!rows) {
-      candidates = new Set();
-      break;
-    }
-    if (candidates === null) {
-      candidates = new Set(rows);
-    } else {
-      const newCandidates = new Set<number>();
-      for (const r of rows) {
-        if (candidates.has(r)) newCandidates.add(r);
-      }
-      candidates = newCandidates;
-    }
-  }
-
-  // Verify candidates
-  const results: number[] = [];
-  if (candidates) {
-    for (const row of candidates) {
-      if (strings[row].includes(search)) {
-        results.push(row);
-      }
-    }
-  }
-
-  return performance.now() - filterStart;
+  return result;
 }
 
 const ROW_COUNTS = [10000, 100000, 500000, 1000000];
@@ -111,8 +54,8 @@ export function BenchmarkRunner() {
     async function load() {
       setWasmLoading(true);
       try {
-        await initGridCore();
-        setWasmLoaded(isGridCoreAvailable());
+        await initWasm();
+        setWasmLoaded(isWasmAvailable());
       } catch (e) {
         console.warn('WASM not available:', e);
       }
@@ -130,40 +73,59 @@ export function BenchmarkRunner() {
     await new Promise((r) => setTimeout(r, 50));
 
     try {
-      // Run JS benchmarks
-      const sortJs = jsBenchSort(rowCount);
+      // =====================
+      // SORT BENCHMARK
+      // =====================
+      // Generate numeric data (shared for both tests)
+      const numericData = generateNumericData(rowCount);
+
+      // JS Sort
+      const sortJsStart = performance.now();
+      jsSortIndices(numericData);
+      const sortJs = performance.now() - sortJsStart;
+
       await new Promise((r) => setTimeout(r, 10));
 
-      const filterScanJs = jsBenchScanFilter(rowCount);
-      await new Promise((r) => setTimeout(r, 10));
-
-      const filterIndexedJs = jsBenchIndexedFilter(rowCount);
-      await new Promise((r) => setTimeout(r, 10));
-
-      // Run WASM benchmarks if available
+      // WASM Sort (using the library's sortValues which uses WASM internally)
       let sortWasm: number | null = null;
-      let filterScanWasm: number | null = null;
-      let filterIndexedWasm: number | null = null;
-
       if (wasmLoaded) {
-        sortWasm = benchSortOnly(rowCount);
-        await new Promise((r) => setTimeout(r, 10));
+        const sortWasmStart = performance.now();
+        sortValues(numericData, 'asc');
+        sortWasm = performance.now() - sortWasmStart;
+      }
 
-        filterScanWasm = benchScanFilter(rowCount);
-        await new Promise((r) => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 10));
 
-        filterIndexedWasm = benchIndexedFilterOnly(rowCount);
+      // =====================
+      // FILTER BENCHMARK
+      // =====================
+      // Generate string data (shared for both tests)
+      const stringData = generateStringData(rowCount);
+      const searchTerm = 'item-50';
+
+      // JS Filter
+      const filterJsStart = performance.now();
+      jsFilterIndices(stringData, searchTerm);
+      const filterJs = performance.now() - filterJsStart;
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      // WASM Filter (using the library's filterValues which uses WASM internally)
+      let filterWasm: number | null = null;
+      if (wasmLoaded) {
+        const filterWasmStart = performance.now();
+        filterValues([stringData], searchTerm, 'contains');
+        filterWasm = performance.now() - filterWasmStart;
       }
 
       setResults({
         sortJs,
         sortWasm,
-        filterScanJs,
-        filterScanWasm,
-        filterIndexedJs,
-        filterIndexedWasm,
+        filterJs,
+        filterWasm,
       });
     } catch (e) {
+      console.error('Benchmark error:', e);
       setError(e instanceof Error ? e.message : 'Benchmark failed');
     }
 
@@ -177,8 +139,15 @@ export function BenchmarkRunner() {
   };
 
   const getSpeedup = (js: number, wasm: number | null) => {
-    if (wasm === null) return null;
-    return (js / wasm).toFixed(1);
+    if (wasm === null || wasm === 0) return null;
+    const ratio = js / wasm;
+    if (ratio < 1) return `${(1 / ratio).toFixed(1)}x slower`;
+    return `${ratio.toFixed(1)}x faster`;
+  };
+
+  const getSpeedupClass = (js: number, wasm: number | null) => {
+    if (wasm === null) return '';
+    return js > wasm ? 'faster' : 'slower';
   };
 
   const getGrade = (ms: number) => {
@@ -254,9 +223,11 @@ export function BenchmarkRunner() {
             {/* Sort */}
             <div className="result-card">
               <div className="result-header">
-                <span className="result-title">Sort</span>
-                {results.sortWasm && (
-                  <span className="speedup">{getSpeedup(results.sortJs, results.sortWasm)}x faster</span>
+                <span className="result-title">Sort (numeric)</span>
+                {results.sortWasm !== null && (
+                  <span className={`speedup ${getSpeedupClass(results.sortJs, results.sortWasm)}`}>
+                    {getSpeedup(results.sortJs, results.sortWasm)}
+                  </span>
                 )}
               </div>
               <div className="result-bars">
@@ -264,10 +235,8 @@ export function BenchmarkRunner() {
                   <span className="bar-label">JavaScript</span>
                   <div className="bar-container">
                     <div
-                      className={`bar js ${getGrade(results.sortJs)}`}
-                      style={{
-                        width: `${Math.min(100, (results.sortJs / Math.max(results.sortJs, 1)) * 100)}%`,
-                      }}
+                      className={`bar js`}
+                      style={{ width: '100%' }}
                     />
                   </div>
                   <span className="bar-value">{formatTime(results.sortJs)}</span>
@@ -279,7 +248,7 @@ export function BenchmarkRunner() {
                       <div
                         className={`bar wasm ${getGrade(results.sortWasm)}`}
                         style={{
-                          width: `${Math.min(100, (results.sortWasm / results.sortJs) * 100)}%`,
+                          width: `${Math.min(100, Math.max(5, (results.sortWasm / results.sortJs) * 100))}%`,
                         }}
                       />
                     </div>
@@ -289,13 +258,13 @@ export function BenchmarkRunner() {
               </div>
             </div>
 
-            {/* Filter (Scan) */}
+            {/* Filter */}
             <div className="result-card">
               <div className="result-header">
-                <span className="result-title">Filter (Linear Scan)</span>
-                {results.filterScanWasm && (
-                  <span className="speedup">
-                    {getSpeedup(results.filterScanJs, results.filterScanWasm)}x faster
+                <span className="result-title">Filter (string search)</span>
+                {results.filterWasm !== null && (
+                  <span className={`speedup ${getSpeedupClass(results.filterJs, results.filterWasm)}`}>
+                    {getSpeedup(results.filterJs, results.filterWasm)}
                   </span>
                 )}
               </div>
@@ -304,62 +273,24 @@ export function BenchmarkRunner() {
                   <span className="bar-label">JavaScript</span>
                   <div className="bar-container">
                     <div
-                      className={`bar js ${getGrade(results.filterScanJs)}`}
+                      className={`bar js`}
                       style={{ width: '100%' }}
                     />
                   </div>
-                  <span className="bar-value">{formatTime(results.filterScanJs)}</span>
+                  <span className="bar-value">{formatTime(results.filterJs)}</span>
                 </div>
-                {results.filterScanWasm !== null && (
+                {results.filterWasm !== null && (
                   <div className="bar-row">
                     <span className="bar-label">WASM</span>
                     <div className="bar-container">
                       <div
-                        className={`bar wasm ${getGrade(results.filterScanWasm)}`}
+                        className={`bar wasm ${getGrade(results.filterWasm)}`}
                         style={{
-                          width: `${Math.min(100, (results.filterScanWasm / results.filterScanJs) * 100)}%`,
+                          width: `${Math.min(100, Math.max(5, (results.filterWasm / results.filterJs) * 100))}%`,
                         }}
                       />
                     </div>
-                    <span className="bar-value">{formatTime(results.filterScanWasm)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Filter (Indexed) */}
-            <div className="result-card">
-              <div className="result-header">
-                <span className="result-title">Filter (Trigram Index)</span>
-                {results.filterIndexedWasm && (
-                  <span className="speedup">
-                    {getSpeedup(results.filterIndexedJs, results.filterIndexedWasm)}x faster
-                  </span>
-                )}
-              </div>
-              <div className="result-bars">
-                <div className="bar-row">
-                  <span className="bar-label">JavaScript</span>
-                  <div className="bar-container">
-                    <div
-                      className={`bar js ${getGrade(results.filterIndexedJs)}`}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <span className="bar-value">{formatTime(results.filterIndexedJs)}</span>
-                </div>
-                {results.filterIndexedWasm !== null && (
-                  <div className="bar-row">
-                    <span className="bar-label">WASM</span>
-                    <div className="bar-container">
-                      <div
-                        className={`bar wasm ${getGrade(results.filterIndexedWasm)}`}
-                        style={{
-                          width: `${Math.min(100, (results.filterIndexedWasm / results.filterIndexedJs) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="bar-value">{formatTime(results.filterIndexedWasm)}</span>
+                    <span className="bar-value">{formatTime(results.filterWasm)}</span>
                   </div>
                 )}
               </div>

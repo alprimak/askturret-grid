@@ -201,8 +201,15 @@
 
 .speedup {
   font-size: 0.875rem;
-  color: #22c55e;
   font-weight: 500;
+}
+
+.speedup.faster {
+  color: #22c55e;
+}
+
+.speedup.slower {
+  color: #f59e0b;
 }
 
 .result-bars {
