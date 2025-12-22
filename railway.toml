@@ -1,11 +1,12 @@
 # Railway config for grid-landing service
+# Build timestamp: 2025-12-22T15:20:00Z
 # Builds both landing page and demo app
 
 [build]
 builder = "nixpacks"
 buildCommand = """
-cd landing && npm install && npm run build && \
-cd ../demo && npm install && npm run build && \
+cd landing && npm install --include=dev && npm run build && \
+cd ../demo && npm install --include=dev && npm run build && \
 cp -r dist ../landing/dist/demo
 """
 watchPatterns = ["landing/**", "demo/**", "src/**"]
