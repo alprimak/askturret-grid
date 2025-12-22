@@ -225,17 +225,10 @@ export function sortValues<T>(values: T[], direction: SortDirection = 'asc'): nu
 
 /**
  * Sort by multiple columns (stable sort)
+ * Note: Uses JS implementation (WASM multi-column sort not yet implemented)
  */
 export function sortMultiColumn<T>(columns: T[][], directions: SortDirection[]): number[] {
-  if (wasmModule) {
-    const dirNums = directions.map(directionToNumber);
-    const result = wasmModule.sort_multi_column(columns, dirNums);
-    const indices = Array.from(result.indices);
-    result.free();
-    return indices;
-  }
-
-  // JS fallback for multi-column sort
+  // JS implementation for multi-column sort
   if (!columns.length) return [];
 
   const len = columns[0].length;
@@ -300,6 +293,7 @@ export function filterRange(values: number[], min: number = -Infinity, max: numb
 
 /**
  * Combined filter and sort in one pass (more efficient for large datasets)
+ * Note: Uses JS implementation (WASM combined filter+sort not yet implemented)
  */
 export function filterAndSort<T>(
   sortVals: T[],
@@ -307,14 +301,7 @@ export function filterAndSort<T>(
   search: string,
   direction: SortDirection = 'asc'
 ): number[] {
-  if (wasmModule) {
-    const result = wasmModule.filter_and_sort(sortVals, filterColumns, search, directionToNumber(direction));
-    const indices = Array.from(result.indices);
-    result.free();
-    return indices;
-  }
-
-  // JS fallback: filter then sort
+  // JS implementation: filter then sort
   const filtered = jsFilterValues(filterColumns, search, 'contains');
   if (!filtered.length) return filtered;
 
