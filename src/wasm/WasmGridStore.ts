@@ -125,9 +125,7 @@ export class WasmGridStore<T extends Record<string, unknown> = Record<string, un
   /**
    * Create a new WasmGridStore
    */
-  static async create<T extends Record<string, unknown>>(
-    schema: ColumnSchema[]
-  ): Promise<WasmGridStore<T>> {
+  static async create<T extends Record<string, unknown>>(schema: ColumnSchema[]): Promise<WasmGridStore<T>> {
     const instance = new WasmGridStore<T>(schema);
     await instance.init();
     return instance;
