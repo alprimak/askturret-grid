@@ -14,7 +14,7 @@ hero:
       link: https://github.com/alprimak/askturret-grid
     - theme: alt
       text: Live Demo
-      link: https://grid.askturret.com
+      link: https://grid.askturret.com/demo/
 
 features:
   - icon: ⚡

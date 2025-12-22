@@ -4,6 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  base: '/demo/',
   resolve: {
     alias: {
       // Use stub in standalone mode - WASM has pure JS fallback
@@ -15,6 +16,7 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+    outDir: 'dist',
   },
   assetsInclude: ['**/*.wasm'],
 });

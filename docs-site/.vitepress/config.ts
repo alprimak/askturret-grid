@@ -35,7 +35,7 @@ export default defineConfig({
         items: [
           { text: 'GitHub', link: 'https://github.com/alprimak/askturret-grid' },
           { text: 'npm', link: 'https://www.npmjs.com/package/@askturret/grid' },
-          { text: 'Live Demo', link: 'https://grid.askturret.com' },
+          { text: 'Live Demo', link: 'https://grid.askturret.com/demo/' },
         ],
       },
     ],
