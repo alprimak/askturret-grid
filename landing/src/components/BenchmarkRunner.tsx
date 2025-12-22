@@ -1,16 +1,18 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { WasmGridStore, initWasmStore, isWasmStoreAvailable, type ColumnSchema } from '@askturret/grid';
 
-interface BenchmarkResults {
-  // Data load
+interface TradingScenarioResults {
+  // One-time costs
   loadJs: number;
   loadWasm: number | null;
-  // Filter (after data is loaded)
-  filterJs: number;
-  filterWasm: number | null;
-  // Batch update
-  updateJs: number;
-  updateWasm: number | null;
+  // Simulated trading session (1000 update cycles)
+  totalUpdatesJs: number;
+  totalUpdatesWasm: number | null;
+  avgUpdateJs: number;
+  avgUpdateWasm: number | null;
+  // Filter during updates
+  filterDuringUpdatesJs: number;
+  filterDuringUpdatesWasm: number | null;
 }
 
 interface TestRow {
@@ -18,29 +20,52 @@ interface TestRow {
   symbol: string;
   price: number;
   quantity: number;
+  change: number;
+  volume: number;
 }
 
-// Generate test data
+const SYMBOLS = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.B', 'JPM', 'V'];
+
 function generateRows(count: number): TestRow[] {
   return Array.from({ length: count }, (_, i) => ({
     id: `row-${i}`,
-    symbol: `SYM_${i % 1000}`,
-    price: Math.random() * 1000,
-    quantity: Math.floor(Math.random() * 1000),
+    symbol: SYMBOLS[i % SYMBOLS.length] + (i < SYMBOLS.length ? '' : `-${Math.floor(i / SYMBOLS.length)}`),
+    price: 100 + Math.random() * 900,
+    quantity: Math.floor(Math.random() * 10000),
+    change: (Math.random() - 0.5) * 20,
+    volume: Math.floor(Math.random() * 1000000),
   }));
+}
+
+function generatePriceUpdates(count: number, totalRows: number): { id: string; price: number; change: number }[] {
+  const updates: { id: string; price: number; change: number }[] = [];
+  const indices = new Set<number>();
+
+  while (indices.size < count) {
+    indices.add(Math.floor(Math.random() * totalRows));
+  }
+
+  for (const idx of indices) {
+    updates.push({
+      id: `row-${idx}`,
+      price: 100 + Math.random() * 900,
+      change: (Math.random() - 0.5) * 20,
+    });
+  }
+
+  return updates;
 }
 
 // Pure JS store for comparison
 class JsGridStore {
   private data: TestRow[] = [];
-  private indexedField = 'symbol';
+  private idMap: Map<string, number> = new Map();
   private filterText = '';
-  private sortColumn: string | null = null;
-  private sortDir: 'asc' | 'desc' = 'asc';
   private viewCache: number[] | null = null;
 
   loadRows(rows: TestRow[]): void {
     this.data = [...rows];
+    this.idMap = new Map(rows.map((r, i) => [r.id, i]));
     this.viewCache = null;
   }
 
@@ -49,12 +74,17 @@ class JsGridStore {
     this.viewCache = null;
   }
 
-  batchUpdate(updates: { id: string; price: number }[]): void {
-    const idMap = new Map(this.data.map((r, i) => [r.id, i]));
+  clearFilter(): void {
+    this.filterText = '';
+    this.viewCache = null;
+  }
+
+  batchUpdate(updates: { id: string; price: number; change: number }[]): void {
     for (const update of updates) {
-      const idx = idMap.get(update.id);
+      const idx = this.idMap.get(update.id);
       if (idx !== undefined) {
-        this.data[idx] = { ...this.data[idx], price: update.price };
+        this.data[idx].price = update.price;
+        this.data[idx].change = update.change;
       }
     }
     this.viewCache = null;
@@ -68,31 +98,14 @@ class JsGridStore {
   private ensureView(): void {
     if (this.viewCache) return;
 
-    let indices = this.data.map((_, i) => i);
-
-    // Filter
-    if (this.filterText) {
-      indices = indices.filter((i) =>
-        this.data[i].symbol.toLowerCase().includes(this.filterText)
-      );
+    if (!this.filterText) {
+      this.viewCache = this.data.map((_, i) => i);
+      return;
     }
 
-    // Sort
-    if (this.sortColumn) {
-      const col = this.sortColumn as keyof TestRow;
-      indices.sort((a, b) => {
-        const va = this.data[a][col];
-        const vb = this.data[b][col];
-        if (typeof va === 'number' && typeof vb === 'number') {
-          return this.sortDir === 'asc' ? va - vb : vb - va;
-        }
-        return this.sortDir === 'asc'
-          ? String(va).localeCompare(String(vb))
-          : String(vb).localeCompare(String(va));
-      });
-    }
-
-    this.viewCache = indices;
+    this.viewCache = this.data
+      .map((row, i) => (row.symbol.toLowerCase().includes(this.filterText) ? i : -1))
+      .filter((i) => i >= 0);
   }
 }
 
@@ -101,23 +114,28 @@ const SCHEMA: ColumnSchema[] = [
   { name: 'symbol', type: 'string', indexed: true },
   { name: 'price', type: 'number' },
   { name: 'quantity', type: 'number' },
+  { name: 'change', type: 'number' },
+  { name: 'volume', type: 'number' },
 ];
 
-const ROW_COUNTS = [10000, 100000, 500000, 1000000];
-const ROW_LABELS = ['10k', '100k', '500k', '1M'];
+const ROW_COUNTS = [10000, 50000, 100000];
+const ROW_LABELS = ['10k', '50k', '100k'];
+const UPDATE_CYCLES = 100; // Simulate 100 update cycles (like 25 seconds at 250ms intervals)
+const UPDATE_PERCENT = 0.15; // 15% of rows update each cycle
 
 export function BenchmarkRunner() {
   const [wasmLoaded, setWasmLoaded] = useState(false);
   const [wasmLoading, setWasmLoading] = useState(false);
-  const [rowCountIndex, setRowCountIndex] = useState(1); // Default 100k
+  const [rowCountIndex, setRowCountIndex] = useState(2); // Default 100k
   const [running, setRunning] = useState(false);
-  const [results, setResults] = useState<BenchmarkResults | null>(null);
+  const [progress, setProgress] = useState('');
+  const [results, setResults] = useState<TradingScenarioResults | null>(null);
   const [error, setError] = useState<string | null>(null);
   const wasmStoreRef = useRef<WasmGridStore<TestRow> | null>(null);
 
   const rowCount = ROW_COUNTS[rowCountIndex];
+  const updatesPerCycle = Math.floor(rowCount * UPDATE_PERCENT);
 
-  // Load WASM on mount
   useEffect(() => {
     async function load() {
       setWasmLoading(true);
@@ -140,112 +158,133 @@ export function BenchmarkRunner() {
     setRunning(true);
     setResults(null);
     setError(null);
+    setProgress('Generating test data...');
 
     await new Promise((r) => setTimeout(r, 50));
 
     try {
-      // Generate test data
+      // Generate initial data
       const rows = generateRows(rowCount);
-      const updates = rows.slice(0, Math.floor(rowCount * 0.1)).map((r) => ({
-        id: r.id,
-        price: Math.random() * 1000,
-      }));
+
+      // Pre-generate all update batches
+      setProgress('Pre-generating update batches...');
+      await new Promise((r) => setTimeout(r, 10));
+
+      const updateBatches = Array.from({ length: UPDATE_CYCLES }, () =>
+        generatePriceUpdates(updatesPerCycle, rowCount)
+      );
 
       // =====================
-      // LOAD BENCHMARK
+      // JAVASCRIPT BENCHMARK
       // =====================
+      setProgress('Running JavaScript benchmark...');
+      await new Promise((r) => setTimeout(r, 10));
+
+      const jsStore = new JsGridStore();
 
       // JS Load
-      const jsStore = new JsGridStore();
       const loadJsStart = performance.now();
       jsStore.loadRows(rows);
       const loadJs = performance.now() - loadJsStart;
 
-      await new Promise((r) => setTimeout(r, 10));
+      // JS Update cycles
+      const updateJsStart = performance.now();
+      for (let i = 0; i < UPDATE_CYCLES; i++) {
+        jsStore.batchUpdate(updateBatches[i]);
+        // Simulate view computation (what React would trigger)
+        jsStore.getViewCount();
+      }
+      const totalUpdatesJs = performance.now() - updateJsStart;
+      const avgUpdateJs = totalUpdatesJs / UPDATE_CYCLES;
 
-      // WASM Load
+      // JS Filter during updates (simulate user typing while data updates)
+      jsStore.setFilter('AAPL');
+      const filterJsStart = performance.now();
+      for (let i = 0; i < 10; i++) {
+        jsStore.batchUpdate(updateBatches[i % UPDATE_CYCLES]);
+        jsStore.getViewCount();
+      }
+      const filterDuringUpdatesJs = performance.now() - filterJsStart;
+      jsStore.clearFilter();
+
+      // =====================
+      // WASM BENCHMARK
+      // =====================
       let loadWasm: number | null = null;
+      let totalUpdatesWasm: number | null = null;
+      let avgUpdateWasm: number | null = null;
+      let filterDuringUpdatesWasm: number | null = null;
+
       if (wasmLoaded) {
+        setProgress('Running WASM benchmark (loading data)...');
+        await new Promise((r) => setTimeout(r, 10));
+
         wasmStoreRef.current?.dispose();
         const store = await WasmGridStore.create<TestRow>(SCHEMA);
         wasmStoreRef.current = store;
 
+        // WASM Load
         const loadWasmStart = performance.now();
         store.loadRows(rows);
         loadWasm = performance.now() - loadWasmStart;
-      }
 
-      await new Promise((r) => setTimeout(r, 10));
+        setProgress('Running WASM benchmark (update cycles)...');
+        await new Promise((r) => setTimeout(r, 10));
 
-      // =====================
-      // FILTER BENCHMARK (data already loaded)
-      // =====================
-
-      // JS Filter
-      const filterJsStart = performance.now();
-      jsStore.setFilter('SYM_42');
-      jsStore.getViewCount(); // Force computation
-      const filterJs = performance.now() - filterJsStart;
-
-      await new Promise((r) => setTimeout(r, 10));
-
-      // WASM Filter
-      let filterWasm: number | null = null;
-      if (wasmLoaded && wasmStoreRef.current) {
-        const filterWasmStart = performance.now();
-        wasmStoreRef.current.setFilter('SYM_42');
-        wasmStoreRef.current.getViewCount(); // Force computation
-        filterWasm = performance.now() - filterWasmStart;
-      }
-
-      await new Promise((r) => setTimeout(r, 10));
-
-      // =====================
-      // UPDATE BENCHMARK
-      // =====================
-
-      // JS Update
-      const updateJsStart = performance.now();
-      jsStore.batchUpdate(updates);
-      const updateJs = performance.now() - updateJsStart;
-
-      await new Promise((r) => setTimeout(r, 10));
-
-      // WASM Update
-      let updateWasm: number | null = null;
-      if (wasmLoaded && wasmStoreRef.current) {
-        // Clear filter first to reset view
-        wasmStoreRef.current.clearFilter();
-
+        // WASM Update cycles
         const updateWasmStart = performance.now();
-        wasmStoreRef.current.updateRows(updates);
-        updateWasm = performance.now() - updateWasmStart;
+        for (let i = 0; i < UPDATE_CYCLES; i++) {
+          store.updateRows(updateBatches[i]);
+          store.getViewCount();
+
+          if (i % 20 === 0) {
+            setProgress(`WASM update cycle ${i + 1}/${UPDATE_CYCLES}...`);
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+        totalUpdatesWasm = performance.now() - updateWasmStart;
+        avgUpdateWasm = totalUpdatesWasm / UPDATE_CYCLES;
+
+        // WASM Filter during updates
+        store.setFilter('AAPL');
+        const filterWasmStart = performance.now();
+        for (let i = 0; i < 10; i++) {
+          store.updateRows(updateBatches[i % UPDATE_CYCLES]);
+          store.getViewCount();
+        }
+        filterDuringUpdatesWasm = performance.now() - filterWasmStart;
+        store.clearFilter();
       }
 
       setResults({
         loadJs,
         loadWasm,
-        filterJs,
-        filterWasm,
-        updateJs,
-        updateWasm,
+        totalUpdatesJs,
+        totalUpdatesWasm,
+        avgUpdateJs,
+        avgUpdateWasm,
+        filterDuringUpdatesJs,
+        filterDuringUpdatesWasm,
       });
+      setProgress('');
     } catch (e) {
       console.error('Benchmark error:', e);
       setError(e instanceof Error ? e.message : 'Benchmark failed');
+      setProgress('');
     }
 
     setRunning(false);
-  }, [rowCount, wasmLoaded]);
+  }, [rowCount, updatesPerCycle, wasmLoaded]);
 
   const formatTime = (ms: number) => {
     if (ms < 1) return '<1ms';
     if (ms < 10) return `${ms.toFixed(1)}ms`;
-    return `${Math.round(ms)}ms`;
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    return `${(ms / 1000).toFixed(2)}s`;
   };
 
   const getSpeedup = (js: number, wasm: number | null) => {
-    if (wasm === null || wasm === 0) return null;
+    if (wasm === null || wasm === 0 || js === 0) return null;
     const ratio = js / wasm;
     if (ratio < 1) return `${(1 / ratio).toFixed(1)}x slower`;
     return `${ratio.toFixed(1)}x faster`;
@@ -256,19 +295,11 @@ export function BenchmarkRunner() {
     return js > wasm ? 'faster' : 'slower';
   };
 
-  const getGrade = (ms: number) => {
-    if (ms < 16) return 'excellent';
-    if (ms < 50) return 'good';
-    if (ms < 100) return 'acceptable';
-    return 'poor';
-  };
-
   return (
     <div className="benchmark-runner">
-      {/* Controls */}
       <div className="benchmark-controls">
         <div className="control-group">
-          <label className="control-label">Dataset Size</label>
+          <label className="control-label">Portfolio Size</label>
           <div className="slider-container">
             <input
               type="range"
@@ -300,36 +331,37 @@ export function BenchmarkRunner() {
                 <span className="spinner" /> Running...
               </>
             ) : (
-              'Run Benchmark'
+              'Run Trading Scenario'
             )}
           </button>
         </div>
       </div>
 
-      {/* WASM Status */}
       <div className={`wasm-status ${wasmLoaded ? 'loaded' : wasmLoading ? 'loading' : 'unavailable'}`}>
         {wasmLoading ? (
           'Loading WASM module...'
         ) : wasmLoaded ? (
-          <>✓ WASM GridStore active (data lives in WASM memory)</>
+          <>✓ WASM GridStore active</>
         ) : (
-          <>⚠ WASM not available - showing JS-only results</>
+          <>⚠ WASM not available</>
         )}
       </div>
 
-      {/* Error */}
+      {progress && <div className="benchmark-progress">{progress}</div>}
       {error && <div className="benchmark-error">{error}</div>}
 
-      {/* Results */}
       {results && (
         <div className="benchmark-results">
-          <h3>Results for {rowCount.toLocaleString()} rows</h3>
+          <h3>Trading Scenario: {rowCount.toLocaleString()} instruments</h3>
+          <p className="scenario-desc">
+            {UPDATE_CYCLES} update cycles, {updatesPerCycle.toLocaleString()} price updates per cycle ({UPDATE_PERCENT * 100}%)
+          </p>
 
           <div className="results-grid">
-            {/* Load */}
+            {/* One-time Load */}
             <div className="result-card">
               <div className="result-header">
-                <span className="result-title">Initial Load + Index Build</span>
+                <span className="result-title">Initial Load (one-time)</span>
                 {results.loadWasm !== null && (
                   <span className={`speedup ${getSpeedupClass(results.loadJs, results.loadWasm)}`}>
                     {getSpeedup(results.loadJs, results.loadWasm)}
@@ -349,9 +381,9 @@ export function BenchmarkRunner() {
                     <span className="bar-label">WASM</span>
                     <div className="bar-container">
                       <div
-                        className={`bar wasm ${getGrade(results.loadWasm)}`}
+                        className="bar wasm"
                         style={{
-                          width: `${Math.min(100, Math.max(5, (results.loadWasm / results.loadJs) * 100))}%`,
+                          width: `${Math.min(100, Math.max(5, (results.loadWasm / Math.max(results.loadJs, results.loadWasm)) * 100))}%`,
                         }}
                       />
                     </div>
@@ -359,52 +391,16 @@ export function BenchmarkRunner() {
                   </div>
                 )}
               </div>
-              <div className="index-note">Includes trigram index construction</div>
+              <div className="index-note">Happens once at startup</div>
             </div>
 
-            {/* Filter */}
-            <div className="result-card">
+            {/* Total Update Time */}
+            <div className="result-card highlight">
               <div className="result-header">
-                <span className="result-title">Filter (trigram lookup)</span>
-                {results.filterWasm !== null && (
-                  <span className={`speedup ${getSpeedupClass(results.filterJs, results.filterWasm)}`}>
-                    {getSpeedup(results.filterJs, results.filterWasm)}
-                  </span>
-                )}
-              </div>
-              <div className="result-bars">
-                <div className="bar-row">
-                  <span className="bar-label">JS (scan)</span>
-                  <div className="bar-container">
-                    <div className="bar js" style={{ width: '100%' }} />
-                  </div>
-                  <span className="bar-value">{formatTime(results.filterJs)}</span>
-                </div>
-                {results.filterWasm !== null && (
-                  <div className="bar-row">
-                    <span className="bar-label">WASM (idx)</span>
-                    <div className="bar-container">
-                      <div
-                        className={`bar wasm ${getGrade(results.filterWasm)}`}
-                        style={{
-                          width: `${Math.min(100, Math.max(5, (results.filterWasm / results.filterJs) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="bar-value">{formatTime(results.filterWasm)}</span>
-                  </div>
-                )}
-              </div>
-              <div className="index-note">O(k) lookup vs O(n) scan</div>
-            </div>
-
-            {/* Update */}
-            <div className="result-card">
-              <div className="result-header">
-                <span className="result-title">Batch Update (10% of rows)</span>
-                {results.updateWasm !== null && (
-                  <span className={`speedup ${getSpeedupClass(results.updateJs, results.updateWasm)}`}>
-                    {getSpeedup(results.updateJs, results.updateWasm)}
+                <span className="result-title">Total Update Time ({UPDATE_CYCLES} cycles)</span>
+                {results.totalUpdatesWasm !== null && (
+                  <span className={`speedup ${getSpeedupClass(results.totalUpdatesJs, results.totalUpdatesWasm)}`}>
+                    {getSpeedup(results.totalUpdatesJs, results.totalUpdatesWasm)}
                   </span>
                 )}
               </div>
@@ -414,54 +410,126 @@ export function BenchmarkRunner() {
                   <div className="bar-container">
                     <div className="bar js" style={{ width: '100%' }} />
                   </div>
-                  <span className="bar-value">{formatTime(results.updateJs)}</span>
+                  <span className="bar-value">{formatTime(results.totalUpdatesJs)}</span>
                 </div>
-                {results.updateWasm !== null && (
+                {results.totalUpdatesWasm !== null && (
                   <div className="bar-row">
                     <span className="bar-label">WASM</span>
                     <div className="bar-container">
                       <div
-                        className={`bar wasm ${getGrade(results.updateWasm)}`}
+                        className="bar wasm"
                         style={{
-                          width: `${Math.min(100, Math.max(5, (results.updateWasm / results.updateJs) * 100))}%`,
+                          width: `${Math.min(100, Math.max(5, (results.totalUpdatesWasm / Math.max(results.totalUpdatesJs, results.totalUpdatesWasm)) * 100))}%`,
                         }}
                       />
                     </div>
-                    <span className="bar-value">{formatTime(results.updateWasm)}</span>
+                    <span className="bar-value">{formatTime(results.totalUpdatesWasm)}</span>
                   </div>
                 )}
               </div>
-              <div className="index-note">Incremental index update per row</div>
+              <div className="index-note">
+                {updatesPerCycle.toLocaleString()} updates × {UPDATE_CYCLES} cycles = {(updatesPerCycle * UPDATE_CYCLES).toLocaleString()} total updates
+              </div>
+            </div>
+
+            {/* Average Update */}
+            <div className="result-card">
+              <div className="result-header">
+                <span className="result-title">Avg per Update Cycle</span>
+                {results.avgUpdateWasm !== null && (
+                  <span className={`speedup ${getSpeedupClass(results.avgUpdateJs, results.avgUpdateWasm)}`}>
+                    {getSpeedup(results.avgUpdateJs, results.avgUpdateWasm)}
+                  </span>
+                )}
+              </div>
+              <div className="result-bars">
+                <div className="bar-row">
+                  <span className="bar-label">JavaScript</span>
+                  <div className="bar-container">
+                    <div className="bar js" style={{ width: '100%' }} />
+                  </div>
+                  <span className="bar-value">{formatTime(results.avgUpdateJs)}</span>
+                </div>
+                {results.avgUpdateWasm !== null && (
+                  <div className="bar-row">
+                    <span className="bar-label">WASM</span>
+                    <div className="bar-container">
+                      <div
+                        className="bar wasm"
+                        style={{
+                          width: `${Math.min(100, Math.max(5, (results.avgUpdateWasm / Math.max(results.avgUpdateJs, results.avgUpdateWasm)) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="bar-value">{formatTime(results.avgUpdateWasm)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="index-note">Target: &lt;16ms for 60fps</div>
+            </div>
+
+            {/* Filter + Updates */}
+            <div className="result-card">
+              <div className="result-header">
+                <span className="result-title">Filter + 10 Update Cycles</span>
+                {results.filterDuringUpdatesWasm !== null && (
+                  <span className={`speedup ${getSpeedupClass(results.filterDuringUpdatesJs, results.filterDuringUpdatesWasm)}`}>
+                    {getSpeedup(results.filterDuringUpdatesJs, results.filterDuringUpdatesWasm)}
+                  </span>
+                )}
+              </div>
+              <div className="result-bars">
+                <div className="bar-row">
+                  <span className="bar-label">JavaScript</span>
+                  <div className="bar-container">
+                    <div className="bar js" style={{ width: '100%' }} />
+                  </div>
+                  <span className="bar-value">{formatTime(results.filterDuringUpdatesJs)}</span>
+                </div>
+                {results.filterDuringUpdatesWasm !== null && (
+                  <div className="bar-row">
+                    <span className="bar-label">WASM</span>
+                    <div className="bar-container">
+                      <div
+                        className="bar wasm"
+                        style={{
+                          width: `${Math.min(100, Math.max(5, (results.filterDuringUpdatesWasm / Math.max(results.filterDuringUpdatesJs, results.filterDuringUpdatesWasm)) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="bar-value">{formatTime(results.filterDuringUpdatesWasm)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="index-note">User filtering while data streams in</div>
             </div>
           </div>
 
-          {/* Summary */}
           <div className="results-summary">
             <div className="summary-item">
-              <span className="summary-label">Your Browser</span>
-              <span className="summary-value">{navigator.userAgent.split(' ').slice(-2).join(' ')}</span>
+              <span className="summary-label">Scenario</span>
+              <span className="summary-value">Real-time trading feed</span>
             </div>
             <div className="summary-item">
-              <span className="summary-label">Rows Tested</span>
-              <span className="summary-value">{rowCount.toLocaleString()}</span>
+              <span className="summary-label">Simulated Time</span>
+              <span className="summary-value">~{Math.round(UPDATE_CYCLES * 0.25)}s at 250ms intervals</span>
             </div>
             <div className="summary-item">
-              <span className="summary-label">Architecture</span>
-              <span className={`summary-value ${wasmLoaded ? 'success' : 'warning'}`}>
-                {wasmLoaded ? 'WASM-First (data in Rust)' : 'JS Fallback'}
-              </span>
+              <span className="summary-label">Updates Processed</span>
+              <span className="summary-value">{(updatesPerCycle * UPDATE_CYCLES).toLocaleString()}</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Placeholder when no results */}
       {!results && !running && (
         <div className="benchmark-placeholder">
-          <p>Click "Run Benchmark" to test performance on your device</p>
-          <p className="placeholder-sub">
-            Tests data load, filter, and batch update on {rowCount.toLocaleString()} rows
-          </p>
+          <p>Simulates a real trading scenario:</p>
+          <ul className="scenario-list">
+            <li>Load {rowCount.toLocaleString()} instruments (one-time)</li>
+            <li>{UPDATE_CYCLES} update cycles ({UPDATE_PERCENT * 100}% of rows each)</li>
+            <li>Filter while updates stream in</li>
+          </ul>
         </div>
       )}
     </div>
