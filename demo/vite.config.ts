@@ -7,5 +7,9 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist',
+    rollupOptions: {
+      // askturret-grid-core is optional WASM - the grid falls back to JS
+      external: ['askturret-grid-core'],
+    },
   },
 });
