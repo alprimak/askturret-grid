@@ -10,7 +10,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "start": "npx serve dist -s -l $PORT"
+    "start": "npx serve dist -l $PORT"
   },
   "dependencies": {
     "@askturret/grid": "^0.1.1",

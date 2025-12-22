@@ -5,6 +5,6 @@
 buildCommand = "cd landing && npm install && npm run build"
 
 [deploy]
-startCommand = "cd landing && npx serve dist -s -l $PORT"
+startCommand = "cd landing && npx serve dist -l $PORT"
 healthcheckPath = "/"
 healthcheckTimeout = 300
