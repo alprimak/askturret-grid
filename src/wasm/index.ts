@@ -2,7 +2,7 @@
  * WASM bridge for high-performance sorting and filtering
  * Falls back to pure JavaScript if WASM is not available
  *
- * Install WASM acceleration: npm install askturret-grid-wasm
+ * Install WASM acceleration: npm install @askturret/grid-wasm
  */
 
 export type SortDirection = 'asc' | 'desc';
@@ -62,7 +62,7 @@ async function loadWasmModule(): Promise<WasmModule | null> {
   try {
     // Dynamic import of the WASM package
     // @ts-expect-error - module may not exist, that's ok
-    const wasm = await import('askturret-grid-wasm');
+    const wasm = await import('@askturret/grid-wasm');
 
     // Initialize the WASM module with optional custom URL
     if (wasm.default && typeof wasm.default === 'function') {

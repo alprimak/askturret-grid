@@ -1,5 +1,5 @@
 {
-  "name": "askturret-grid-wasm",
+  "name": "@askturret/grid-wasm",
   "version": "0.1.0",
   "description": "High-performance WASM acceleration for @askturret/grid - sorting, filtering, and trigram indexing",
   "license": "MIT",
