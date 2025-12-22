@@ -1,0 +1,3 @@
+# Force Node.js 20 for Astro compatibility
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-10_x"]
