@@ -9,8 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@askturret/grid": "file:..",
-    "askturret-grid-core": "file:../../grid-core/pkg",
+    "@askturret/grid": "^0.1.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },

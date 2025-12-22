@@ -244,10 +244,11 @@ The main askturret repo uses this package via file: dependency:
 - [x] CSV export
 
 ### Planned (Open Source)
-- [ ] npm publish
+- [x] npm publish (workflow ready, publish on release)
 - [x] Landing page at grid.askturret.com
 - [x] Documentation at alprimak.github.io/askturret-grid/
 - [x] Benchmarks page at grid.askturret.com/benchmarks/
+- [x] Live demo at grid.askturret.com/demo/
 
 ### Planned (Enterprise Tier)
 - [ ] Row grouping & aggregation

@@ -8,7 +8,7 @@
 
 A high-performance React data grid powered by Rust + WebAssembly with trigram indexing for instant filtering. Built for trading applications handling 1M+ rows with real-time updates at 60fps.
 
-[Live Demo](https://grid.askturret.com) · [Documentation](https://grid.askturret.com/docs) · [Benchmarks](https://grid.askturret.com/benchmarks)
+[Live Demo](https://grid.askturret.com/demo/) · [Documentation](https://alprimak.github.io/askturret-grid/) · [Benchmarks](https://grid.askturret.com/benchmarks/)
 
 ---
 
