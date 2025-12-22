@@ -35,7 +35,7 @@ jobs:
         run: npm run test:run
 
       - name: Build
-        run: npm run build:pkg
+        run: npm run build
 
       - name: Publish (dry run)
         if: github.event.inputs.dry_run == 'true'

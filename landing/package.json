@@ -8,9 +8,10 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && npm run build:demo",
+    "build:demo": "cd ../demo && npm install && npm run build && cp -r dist ../landing/dist/demo",
     "preview": "astro preview",
-    "start": "serve dist -s -l 3000"
+    "start": "serve dist -s -l ${PORT:-3000}"
   },
   "dependencies": {
     "@astrojs/react": "^4.4.2",
