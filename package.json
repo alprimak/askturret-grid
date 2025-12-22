@@ -1,6 +1,6 @@
 {
   "name": "@askturret/grid",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "High-performance React data grid with Rust/WASM. Server-side performance, zero server required.",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,7 +27,7 @@
   ],
   "scripts": {
     "//build": "NOTE: When adding new CSS files, update both the cat command below AND exports in package.json",
-    "build": "tsc && cat src/styles/grid.css src/styles/orderbook.css src/styles/topmovers.css src/styles/timesales.css src/styles/positionladder.css > dist/styles.css",
+    "build": "tsup && cat src/styles/grid.css src/styles/orderbook.css src/styles/topmovers.css src/styles/timesales.css src/styles/positionladder.css > dist/styles.css",
     "dev": "tsc --watch",
     "demo": "cd demo && npm run dev",
     "test": "vitest",
@@ -50,9 +50,10 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "jsdom": "^25.0.0",
+    "prettier": "^3.4.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "prettier": "^3.4.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.3.0",
     "vitest": "^2.1.0"
   },
