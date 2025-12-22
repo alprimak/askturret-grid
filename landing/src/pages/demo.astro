@@ -1,0 +1,82 @@
+---
+import Base from '../layouts/Base.astro';
+import App from '../components/demo/App';
+import '@askturret/grid/styles.css';
+import '../styles/demo.css';
+
+// Get package version for display
+const packageVersion = '0.1.1';
+---
+
+<Base title="Demo - @askturret/grid" description="Interactive demo of @askturret/grid. Try sorting, filtering, and real-time updates with 1M+ rows.">
+  <div class="demo-page">
+    <header class="demo-page-header">
+      <a href="/" class="back-link">
+        &larr; Back to home
+      </a>
+      <span class="version-badge">
+        v{packageVersion}
+      </span>
+    </header>
+
+    <App client:load />
+
+    <footer class="demo-footer">
+      <p>
+        Using <a href="https://www.npmjs.com/package/@askturret/grid" target="_blank" rel="noopener">@askturret/grid@{packageVersion}</a> from npm
+      </p>
+    </footer>
+  </div>
+</Base>
+
+<style>
+  .demo-page {
+    min-height: 100vh;
+  }
+
+  .demo-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--grid-border, #1e1e2e);
+  }
+
+  .back-link {
+    color: #6b6b7b;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.15s;
+  }
+
+  .back-link:hover {
+    color: #e1e1e6;
+  }
+
+  .version-badge {
+    font-size: 12px;
+    padding: 4px 12px;
+    background: rgba(0, 212, 170, 0.1);
+    color: #00d4aa;
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .demo-footer {
+    text-align: center;
+    padding: 24px;
+    color: #6b6b7b;
+    font-size: 14px;
+    border-top: 1px solid var(--grid-border, #1e1e2e);
+  }
+
+  .demo-footer a {
+    color: #00d4aa;
+    text-decoration: none;
+  }
+
+  .demo-footer a:hover {
+    text-decoration: underline;
+  }
+</style>

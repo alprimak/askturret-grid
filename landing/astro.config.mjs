@@ -13,5 +13,13 @@ export default defineConfig({
     ssr: {
       noExternal: ['@askturret/grid'],
     },
+    build: {
+      rollupOptions: {
+        external: ['@askturret/grid-wasm'],
+      },
+    },
+    optimizeDeps: {
+      exclude: ['@askturret/grid-wasm'],
+    },
   },
 });

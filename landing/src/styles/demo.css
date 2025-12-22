@@ -1,0 +1,511 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: #0a0a0f;
+  color: #e1e1e6;
+  min-height: 100vh;
+}
+
+/* Custom theme - terminal dark */
+:root {
+  --grid-bg: #0a0a0f;
+  --grid-surface: #12121a;
+  --grid-border: #1e1e2e;
+  --grid-border-alpha: rgba(30, 30, 46, 0.3);
+  --grid-text: #e1e1e6;
+  --grid-text-muted: #6b6b7b;
+  --grid-accent: #00d4aa;
+  --grid-flash-up: rgba(0, 200, 83, 0.4);
+  --grid-flash-down: rgba(255, 82, 82, 0.4);
+  --grid-row-hover: rgba(18, 18, 26, 0.5);
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #6b6b7b;
+  margin-bottom: 24px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #1e1e2e;
+  padding-bottom: 8px;
+}
+
+.tab {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: #6b6b7b;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.tab:hover {
+  color: #e1e1e6;
+  background: #12121a;
+}
+
+.tab.active {
+  color: #0a0a0f;
+  background: #00d4aa;
+}
+
+.demo-section {
+  background: #12121a;
+  border: 1px solid #1e1e2e;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.demo-header {
+  padding: 16px;
+  border-bottom: 1px solid #1e1e2e;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.demo-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.demo-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.demo-content {
+  height: 400px;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-size: 12px;
+  color: #6b6b7b;
+}
+
+input[type='range'] {
+  accent-color: #00d4aa;
+}
+
+button.start {
+  padding: 6px 16px;
+  background: #00c853;
+  border: none;
+  border-radius: 4px;
+  color: #0a0a0f;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+button.stop {
+  padding: 6px 16px;
+  background: #ff5252;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.stat {
+  font-size: 12px;
+  color: #6b6b7b;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #e1e1e6;
+}
+
+.fps {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.fps.good {
+  color: #00c853;
+}
+.fps.ok {
+  color: #ffc107;
+}
+.fps.bad {
+  color: #ff5252;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.badge.virtualized {
+  background: rgba(0, 188, 212, 0.2);
+  color: #00bcd4;
+  border: 1px solid rgba(0, 188, 212, 0.3);
+}
+
+.badge.standard {
+  background: rgba(107, 107, 123, 0.2);
+  color: #6b6b7b;
+  border: 1px solid rgba(107, 107, 123, 0.3);
+}
+
+.badge.flash-on {
+  background: rgba(0, 200, 83, 0.2);
+  color: #00c853;
+  border: 1px solid rgba(0, 200, 83, 0.3);
+}
+
+.badge.flash-off {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.positive {
+  color: #00c853;
+}
+.negative {
+  color: #ff5252;
+}
+
+/* OrderBook Demo */
+.demo-options {
+  display: flex;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #0a0a0f;
+  border-bottom: 1px solid #1e1e2e;
+  font-size: 12px;
+}
+
+.demo-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6b6b7b;
+}
+
+.demo-options input[type='checkbox'] {
+  accent-color: #00d4aa;
+}
+
+.demo-options input[type='number'] {
+  width: 50px;
+  padding: 4px 8px;
+  background: #12121a;
+  border: 1px solid #1e1e2e;
+  border-radius: 4px;
+  color: #e1e1e6;
+  font-size: 12px;
+}
+
+.symbol-select {
+  padding: 6px 12px;
+  background: #12121a;
+  border: 1px solid #1e1e2e;
+  border-radius: 4px;
+  color: #e1e1e6;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.orderbook-demo-content {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+}
+
+.orderbook-container {
+  max-width: 400px;
+}
+
+.orderbook-selection {
+  font-size: 14px;
+  color: #6b6b7b;
+}
+
+.orderbook-selection .bid {
+  color: #00c853;
+  font-weight: 600;
+}
+
+.orderbook-selection .ask {
+  color: #ff5252;
+  font-weight: 600;
+}
+
+.orderbook-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.orderbook-stats .stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orderbook-stats .stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b6b7b;
+}
+
+.orderbook-stats .stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e1e1e6;
+}
+
+.orderbook-stats .stat-value.bid {
+  color: #00c853;
+}
+
+.orderbook-stats .stat-value.ask {
+  color: #ff5252;
+}
+
+/* Performance Demo */
+.demo-options select {
+  padding: 4px 8px;
+  background: #12121a;
+  border: 1px solid #1e1e2e;
+  border-radius: 4px;
+  color: #e1e1e6;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.demo-options .control-value {
+  min-width: 60px;
+  text-align: right;
+  font-weight: 600;
+  color: #e1e1e6;
+}
+
+.status-active {
+  color: #00c853;
+}
+
+.status-pending {
+  color: #ffc107;
+}
+
+.status-closed {
+  color: #6b6b7b;
+}
+
+/* Top Movers Demo */
+.topmovers-demo-content {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  height: auto;
+  min-height: 400px;
+}
+
+.topmovers-selection {
+  font-size: 14px;
+  color: #6b6b7b;
+  padding: 8px 12px;
+  background: #0a0a0f;
+  border-radius: 4px;
+}
+
+.topmovers-info {
+  font-size: 12px;
+  color: #6b6b7b;
+  line-height: 1.6;
+  padding: 12px;
+  background: rgba(0, 212, 170, 0.05);
+  border: 1px solid rgba(0, 212, 170, 0.2);
+  border-radius: 4px;
+}
+
+.topmovers-info p {
+  margin: 0 0 8px 0;
+}
+
+.topmovers-info p:last-child {
+  margin-bottom: 0;
+}
+
+.topmovers-info strong {
+  color: #00d4aa;
+}
+
+/* Time & Sales Demo */
+.timesales-demo-content {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  height: auto;
+  min-height: 400px;
+}
+
+.timesales-container {
+  max-width: 500px;
+}
+
+.timesales-selection {
+  font-size: 14px;
+  color: #6b6b7b;
+  padding: 8px 12px;
+  background: #0a0a0f;
+  border-radius: 4px;
+}
+
+.timesales-selection .buy {
+  color: #00c853;
+  font-weight: 600;
+}
+
+.timesales-selection .sell {
+  color: #ff5252;
+  font-weight: 600;
+}
+
+.timesales-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.timesales-stats .stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timesales-stats .stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b6b7b;
+}
+
+.timesales-stats .stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e1e1e6;
+}
+
+.timesales-stats .stat-value.bid {
+  color: #00c853;
+}
+
+.timesales-stats .stat-value.ask {
+  color: #ff5252;
+}
+
+/* Position Ladder Demo */
+.ladder-demo-content {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  height: auto;
+  min-height: 500px;
+}
+
+.ladder-container {
+  display: flex;
+  justify-content: center;
+}
+
+.ladder-feedback {
+  font-size: 16px;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: center;
+  border-radius: 4px;
+  animation: ladder-feedback-fade 2s ease-out forwards;
+}
+
+.ladder-feedback.buy {
+  background: rgba(0, 200, 83, 0.2);
+  color: #00c853;
+  border: 1px solid rgba(0, 200, 83, 0.3);
+}
+
+.ladder-feedback.sell {
+  background: rgba(255, 82, 82, 0.2);
+  color: #ff5252;
+  border: 1px solid rgba(255, 82, 82, 0.3);
+}
+
+@keyframes ladder-feedback-fade {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.ladder-info {
+  font-size: 12px;
+  color: #6b6b7b;
+  line-height: 1.6;
+  padding: 12px;
+  background: rgba(0, 212, 170, 0.05);
+  border: 1px solid rgba(0, 212, 170, 0.2);
+  border-radius: 4px;
+}
+
+.ladder-info p {
+  margin: 0 0 8px 0;
+}
+
+.ladder-info p:last-child {
+  margin-bottom: 0;
+}
+
+.ladder-info strong {
+  color: #00d4aa;
+}
