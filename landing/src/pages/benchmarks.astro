@@ -1,5 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
+import { BenchmarkRunner } from '../components/BenchmarkRunner';
+import '../styles/benchmark.css';
 ---
 
 <Base title="Benchmarks - @askturret/grid" description="Live benchmarks for @askturret/grid. Test sorting, filtering, and updates on 100k+ rows in your browser.">
@@ -18,10 +20,19 @@ import Base from '../layouts/Base.astro';
       </p>
     </section>
 
-    <!-- Benchmark Results -->
+    <!-- Interactive Runner -->
+    <section class="py-8 px-4">
+      <div class="max-w-4xl mx-auto">
+        <h2 class="text-2xl font-bold text-grid-text mb-6 text-center">Run Your Own Test</h2>
+        <BenchmarkRunner client:load />
+      </div>
+    </section>
+
+    <!-- Reference Comparisons -->
     <section class="py-12 px-4">
       <div class="max-w-4xl mx-auto">
-        <h2 class="text-2xl font-bold text-grid-text mb-8 text-center">Performance Results</h2>
+        <h2 class="text-2xl font-bold text-grid-text mb-2 text-center">Reference Comparisons</h2>
+        <p class="text-grid-muted text-center mb-8">Pre-measured baselines from our test environment</p>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
           <!-- Sort Latency -->
@@ -133,9 +144,14 @@ import Base from '../layouts/Base.astro';
 
     <!-- CTA -->
     <section class="py-16 px-4 text-center">
-      <a href="/" class="btn-primary">
-        Get Started
-      </a>
+      <div class="flex justify-center gap-4 flex-wrap">
+        <a href="/demo" class="btn-primary">
+          Try the Demo
+        </a>
+        <a href="/" class="btn-secondary">
+          Get Started
+        </a>
+      </div>
     </section>
   </main>
 </Base>
