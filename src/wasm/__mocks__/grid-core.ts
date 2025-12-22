@@ -1,5 +1,5 @@
 /**
- * Mock for askturret-grid-core WASM module
+ * Mock for @askturret/grid-wasm module
  * Used in tests to avoid WASM loading issues
  */
 

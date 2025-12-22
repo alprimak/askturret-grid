@@ -11,7 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Mock the WASM module for tests - it will fail to load and fall back to JS
-      'askturret-grid-core': path.resolve(__dirname, './src/wasm/__mocks__/grid-core.ts'),
+      '@askturret/grid-wasm': path.resolve(__dirname, './src/wasm/__mocks__/grid-core.ts'),
     },
   },
 });

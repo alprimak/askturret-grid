@@ -41,7 +41,7 @@ For accurate virtualization, specify row height:
 Install the optional WASM core for maximum performance:
 
 ```bash
-npm install askturret-grid-core
+npm install @askturret/grid-wasm
 ```
 
 ### What WASM Accelerates

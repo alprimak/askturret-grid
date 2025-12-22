@@ -54,7 +54,7 @@ The package requires React 18+:
 For maximum performance with 100k+ rows, install the optional WASM core:
 
 ```bash
-npm install askturret-grid-core
+npm install @askturret/grid-wasm
 ```
 
 The grid automatically detects and uses the WASM core when available. Without it, the grid falls back to pure JavaScript implementations.

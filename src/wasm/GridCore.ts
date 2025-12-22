@@ -63,9 +63,14 @@ export async function initGridCore(): Promise<boolean> {
 async function loadWasm(): Promise<WasmModule | null> {
   try {
     // @ts-expect-error - module may not exist
-    const wasm = await import('askturret-grid-core');
+    const wasm = await import('@askturret/grid-wasm');
     if (wasm.default && typeof wasm.default === 'function') {
       await wasm.default();
+    }
+    // GridCore requires GridState/IndexedGridState classes which are not in the base WASM package
+    // If they don't exist, throw to fall back to JS
+    if (!wasm.GridState || !wasm.IndexedGridState) {
+      throw new Error('GridState classes not available in WASM module');
     }
     wasmModule = wasm as WasmModule;
     console.log('[GridCore] WASM module loaded');

@@ -83,7 +83,7 @@ The filter uses **substring matching**:
 With the optional WASM core, filtering uses trigram indexing for O(1) lookups:
 
 ```bash
-npm install askturret-grid-core
+npm install @askturret/grid-wasm
 ```
 
 Performance comparison (100k rows):

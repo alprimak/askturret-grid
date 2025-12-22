@@ -1,5 +1,5 @@
 /**
- * Stub for askturret-grid-core WASM module
+ * Stub for @askturret/grid-wasm module
  * The grid falls back to pure JS when WASM is not available
  * This stub prevents build errors in standalone mode
  */
