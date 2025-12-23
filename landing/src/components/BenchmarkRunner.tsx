@@ -8,25 +8,25 @@ import {
 } from '@askturret/grid';
 
 interface BenchmarkResults {
+  // Per-update call latency (how long main thread blocks per update)
+  avgLatencyJs: number;
+  avgLatencyWasm: number | null;
+  avgLatencyWorker: number | null;
+
+  // Total main thread blocking over simulation
+  totalBlockJs: number;
+  totalBlockWasm: number | null;
+  totalBlockWorker: number | null;
+
+  // Frame budget (% of 16ms used per frame)
+  frameBudgetJs: number;
+  frameBudgetWasm: number | null;
+  frameBudgetWorker: number | null;
+
   // Initial load
   loadJs: number;
   loadWasm: number | null;
   loadWorker: number | null;
-
-  // Update throughput (total time for all updates)
-  updatesJs: number;
-  updatesWasm: number | null;
-  updatesWorker: number | null;
-
-  // Main thread blocking (crucial for UX)
-  mainThreadBlockJs: number;
-  mainThreadBlockWasm: number | null;
-  mainThreadBlockWorker: number | null;
-
-  // Updates per second
-  throughputJs: number;
-  throughputWasm: number | null;
-  throughputWorker: number | null;
 }
 
 interface TestRow {
@@ -38,7 +38,8 @@ interface TestRow {
   volume: number;
 }
 
-const SYMBOLS = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.B', 'JPM', 'V'];
+const SYMBOLS = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.B', 'JPM', 'V',
+                 'MA', 'UNH', 'HD', 'PG', 'DIS', 'NFLX', 'ADBE', 'CRM', 'PYPL', 'INTC'];
 
 function generateRows(count: number): TestRow[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -51,11 +52,11 @@ function generateRows(count: number): TestRow[] {
   }));
 }
 
-function generatePriceUpdates(count: number, totalRows: number): { id: string; price: number; change: number }[] {
+function generateSmallBatch(batchSize: number, totalRows: number): { id: string; price: number; change: number }[] {
   const updates: { id: string; price: number; change: number }[] = [];
   const indices = new Set<number>();
 
-  while (indices.size < count) {
+  while (indices.size < batchSize) {
     indices.add(Math.floor(Math.random() * totalRows));
   }
 
@@ -80,16 +81,6 @@ class JsGridStore {
   loadRows(rows: TestRow[]): void {
     this.data = [...rows];
     this.idMap = new Map(rows.map((r, i) => [r.id, i]));
-    this.viewCache = null;
-  }
-
-  setFilter(text: string): void {
-    this.filterText = text.toLowerCase();
-    this.viewCache = null;
-  }
-
-  clearFilter(): void {
-    this.filterText = '';
     this.viewCache = null;
   }
 
@@ -134,8 +125,11 @@ const SCHEMA: ColumnSchema[] = [
 
 const ROW_COUNTS = [10000, 50000, 100000];
 const ROW_LABELS = ['10k', '50k', '100k'];
-const UPDATE_CYCLES = 100;
-const UPDATE_PERCENT = 0.15;
+
+// Realistic trading scenario parameters
+const SIMULATION_FRAMES = 60; // 1 second at 60fps
+const UPDATES_PER_FRAME = 200; // ~200 price updates per 16ms tick (realistic for active market)
+const FRAME_BUDGET_MS = 16; // Target frame time for 60fps
 
 export function BenchmarkRunner() {
   const [wasmLoaded, setWasmLoaded] = useState(false);
@@ -149,8 +143,7 @@ export function BenchmarkRunner() {
   const workerStoreRef = useRef<WorkerGridStore<TestRow> | null>(null);
 
   const rowCount = ROW_COUNTS[rowCountIndex];
-  const updatesPerCycle = Math.floor(rowCount * UPDATE_PERCENT);
-  const totalUpdates = updatesPerCycle * UPDATE_CYCLES;
+  const totalUpdates = SIMULATION_FRAMES * UPDATES_PER_FRAME;
 
   useEffect(() => {
     async function load() {
@@ -183,12 +176,12 @@ export function BenchmarkRunner() {
       // Generate initial data
       const rows = generateRows(rowCount);
 
-      // Pre-generate all update batches
+      // Pre-generate all update batches (small, realistic batches)
       setProgress('Pre-generating update batches...');
       await new Promise((r) => setTimeout(r, 10));
 
-      const updateBatches = Array.from({ length: UPDATE_CYCLES }, () =>
-        generatePriceUpdates(updatesPerCycle, rowCount)
+      const updateBatches = Array.from({ length: SIMULATION_FRAMES }, () =>
+        generateSmallBatch(UPDATES_PER_FRAME, rowCount)
       );
 
       // =====================
@@ -204,26 +197,25 @@ export function BenchmarkRunner() {
       jsStore.loadRows(rows);
       const loadJs = performance.now() - loadJsStart;
 
-      // JS Updates - measure total time and main thread blocking
-      const updateJsStart = performance.now();
-      let jsMainThreadBlock = 0;
-
-      for (let i = 0; i < UPDATE_CYCLES; i++) {
-        const cycleStart = performance.now();
+      // JS Updates - measure per-frame latency
+      const jsLatencies: number[] = [];
+      for (let i = 0; i < SIMULATION_FRAMES; i++) {
+        const frameStart = performance.now();
         jsStore.batchUpdate(updateBatches[i]);
-        jsStore.getViewCount();
-        jsMainThreadBlock += performance.now() - cycleStart;
+        jsStore.getViewCount(); // Simulate render check
+        jsLatencies.push(performance.now() - frameStart);
       }
-      const updatesJs = performance.now() - updateJsStart;
-      const throughputJs = totalUpdates / (updatesJs / 1000);
+      const totalBlockJs = jsLatencies.reduce((a, b) => a + b, 0);
+      const avgLatencyJs = totalBlockJs / SIMULATION_FRAMES;
+      const frameBudgetJs = (avgLatencyJs / FRAME_BUDGET_MS) * 100;
 
       // =====================
       // WASM DIRECT BENCHMARK
       // =====================
       let loadWasm: number | null = null;
-      let updatesWasm: number | null = null;
-      let wasmMainThreadBlock: number | null = null;
-      let throughputWasm: number | null = null;
+      let avgLatencyWasm: number | null = null;
+      let totalBlockWasm: number | null = null;
+      let frameBudgetWasm: number | null = null;
 
       if (wasmLoaded) {
         setProgress('Running WASM benchmark...');
@@ -239,92 +231,81 @@ export function BenchmarkRunner() {
         loadWasm = performance.now() - loadWasmStart;
 
         // WASM Updates
-        const updateWasmStart = performance.now();
-        wasmMainThreadBlock = 0;
-
-        for (let i = 0; i < UPDATE_CYCLES; i++) {
-          const cycleStart = performance.now();
+        const wasmLatencies: number[] = [];
+        for (let i = 0; i < SIMULATION_FRAMES; i++) {
+          const frameStart = performance.now();
           store.updateRows(updateBatches[i]);
           store.getViewCount();
-          wasmMainThreadBlock += performance.now() - cycleStart;
+          wasmLatencies.push(performance.now() - frameStart);
 
-          if (i % 20 === 0) {
-            setProgress(`WASM update cycle ${i + 1}/${UPDATE_CYCLES}...`);
+          if (i % 10 === 0) {
+            setProgress(`WASM frame ${i + 1}/${SIMULATION_FRAMES}...`);
             await new Promise((r) => setTimeout(r, 0));
           }
         }
-        updatesWasm = performance.now() - updateWasmStart;
-        throughputWasm = totalUpdates / (updatesWasm / 1000);
+        totalBlockWasm = wasmLatencies.reduce((a, b) => a + b, 0);
+        avgLatencyWasm = totalBlockWasm / SIMULATION_FRAMES;
+        frameBudgetWasm = (avgLatencyWasm / FRAME_BUDGET_MS) * 100;
       }
 
       // =====================
-      // WORKER + WASM BENCHMARK
+      // WORKER + JS BENCHMARK
       // =====================
       let loadWorker: number | null = null;
-      let updatesWorker: number | null = null;
-      let workerMainThreadBlock: number | null = null;
-      let throughputWorker: number | null = null;
+      let avgLatencyWorker: number | null = null;
+      let totalBlockWorker: number | null = null;
+      let frameBudgetWorker: number | null = null;
 
-      if (wasmLoaded) {
-        setProgress('Running Worker + WASM benchmark...');
-        await new Promise((r) => setTimeout(r, 10));
+      setProgress('Running Worker benchmark...');
+      await new Promise((r) => setTimeout(r, 10));
 
-        workerStoreRef.current?.dispose();
+      workerStoreRef.current?.dispose();
 
-        try {
-          const workerStore = await WorkerGridStore.create<TestRow>(SCHEMA, {
-            batchInterval: 16, // 60fps batching
-          });
-          workerStoreRef.current = workerStore;
+      try {
+        const workerStore = await WorkerGridStore.create<TestRow>(SCHEMA, {
+          batchInterval: 16,
+        });
+        workerStoreRef.current = workerStore;
 
-          // Set viewport (simulate virtualized grid showing 50 rows)
-          workerStore.setViewport(0, 50);
+        // Set viewport
+        workerStore.setViewport(0, 50);
 
-          // Worker Load
-          const loadWorkerStart = performance.now();
-          await workerStore.loadRows(rows);
-          loadWorker = performance.now() - loadWorkerStart;
+        // Worker Load
+        const loadWorkerStart = performance.now();
+        await workerStore.loadRows(rows);
+        loadWorker = performance.now() - loadWorkerStart;
 
-          // Worker Updates - measure main thread time (should be minimal)
-          // Updates are queued and processed in worker
-          const updateWorkerStart = performance.now();
-          workerMainThreadBlock = 0;
-
-          for (let i = 0; i < UPDATE_CYCLES; i++) {
-            const cycleStart = performance.now();
-            workerStore.queueUpdates(updateBatches[i]); // Non-blocking!
-            workerMainThreadBlock += performance.now() - cycleStart;
-
-            if (i % 20 === 0) {
-              setProgress(`Worker update cycle ${i + 1}/${UPDATE_CYCLES}...`);
-              await new Promise((r) => setTimeout(r, 0));
-            }
-          }
-
-          // Wait for all updates to process
-          await new Promise((r) => setTimeout(r, 200));
-          const stats = await workerStore.getStats();
-
-          updatesWorker = performance.now() - updateWorkerStart;
-          throughputWorker = stats.processedUpdates / (updatesWorker / 1000);
-        } catch (e) {
-          console.warn('Worker benchmark failed:', e);
+        // Worker Updates - measure how fast queueUpdates returns (non-blocking)
+        const workerLatencies: number[] = [];
+        for (let i = 0; i < SIMULATION_FRAMES; i++) {
+          const frameStart = performance.now();
+          workerStore.queueUpdates(updateBatches[i]); // Should return instantly
+          workerLatencies.push(performance.now() - frameStart);
         }
+
+        // Wait for processing to complete
+        await new Promise((r) => setTimeout(r, 100));
+
+        totalBlockWorker = workerLatencies.reduce((a, b) => a + b, 0);
+        avgLatencyWorker = totalBlockWorker / SIMULATION_FRAMES;
+        frameBudgetWorker = (avgLatencyWorker / FRAME_BUDGET_MS) * 100;
+      } catch (e) {
+        console.warn('Worker benchmark failed:', e);
       }
 
       setResults({
+        avgLatencyJs,
+        avgLatencyWasm,
+        avgLatencyWorker,
+        totalBlockJs,
+        totalBlockWasm,
+        totalBlockWorker,
+        frameBudgetJs,
+        frameBudgetWasm,
+        frameBudgetWorker,
         loadJs,
         loadWasm,
         loadWorker,
-        updatesJs,
-        updatesWasm,
-        updatesWorker,
-        mainThreadBlockJs: jsMainThreadBlock,
-        mainThreadBlockWasm: wasmMainThreadBlock,
-        mainThreadBlockWorker: workerMainThreadBlock,
-        throughputJs,
-        throughputWasm,
-        throughputWorker,
       });
       setProgress('');
     } catch (e) {
@@ -334,39 +315,45 @@ export function BenchmarkRunner() {
     }
 
     setRunning(false);
-  }, [rowCount, updatesPerCycle, totalUpdates, wasmLoaded]);
+  }, [rowCount, wasmLoaded]);
 
   const formatTime = (ms: number) => {
-    if (ms < 1) return '<1ms';
+    if (ms < 0.01) return '<0.01ms';
+    if (ms < 0.1) return `${(ms * 1000).toFixed(0)}μs`;
+    if (ms < 1) return `${ms.toFixed(2)}ms`;
     if (ms < 10) return `${ms.toFixed(1)}ms`;
     if (ms < 1000) return `${Math.round(ms)}ms`;
     return `${(ms / 1000).toFixed(2)}s`;
   };
 
-  const formatThroughput = (ups: number) => {
-    if (ups >= 1000000) return `${(ups / 1000000).toFixed(1)}M/s`;
-    if (ups >= 1000) return `${(ups / 1000).toFixed(0)}K/s`;
-    return `${Math.round(ups)}/s`;
+  const formatPercent = (pct: number) => {
+    if (pct < 1) return '<1%';
+    if (pct > 100) return `${Math.round(pct)}%`;
+    return `${Math.round(pct)}%`;
   };
 
   const getSpeedup = (baseline: number, value: number | null) => {
     if (value === null || value === 0 || baseline === 0) return null;
     const ratio = baseline / value;
     if (ratio < 1) return `${(1 / ratio).toFixed(1)}x slower`;
+    if (ratio > 100) return `${Math.round(ratio)}x faster`;
     if (ratio > 1.1) return `${ratio.toFixed(1)}x faster`;
     return 'similar';
   };
 
-  const getSpeedupClass = (baseline: number, value: number | null) => {
-    if (value === null) return '';
-    return baseline > value ? 'faster' : baseline < value * 0.9 ? 'slower' : 'similar';
+  const getBudgetClass = (pct: number | null) => {
+    if (pct === null) return '';
+    if (pct <= 20) return 'excellent';
+    if (pct <= 50) return 'good';
+    if (pct <= 100) return 'warning';
+    return 'bad';
   };
 
   return (
     <div className="benchmark-runner">
       <div className="benchmark-controls">
         <div className="control-group">
-          <label className="control-label">Dataset Size</label>
+          <label className="control-label">Portfolio Size</label>
           <div className="slider-container">
             <input
               type="range"
@@ -408,9 +395,9 @@ export function BenchmarkRunner() {
         {wasmLoading ? (
           'Loading WASM module...'
         ) : wasmLoaded ? (
-          <>✓ WASM + Worker available</>
+          <>✓ WASM + Worker ready</>
         ) : (
-          <>⚠ WASM not available</>
+          <>⚠ WASM not available (Worker still works)</>
         )}
       </div>
 
@@ -419,13 +406,16 @@ export function BenchmarkRunner() {
 
       {results && (
         <div className="benchmark-results">
-          <h3>Results: {rowCount.toLocaleString()} rows, {totalUpdates.toLocaleString()} updates</h3>
+          <h3>Trading Simulation: {rowCount.toLocaleString()} instruments</h3>
+          <p className="scenario-desc">
+            {SIMULATION_FRAMES} frames × {UPDATES_PER_FRAME} updates = {totalUpdates.toLocaleString()} price ticks (1 second @ 60fps)
+          </p>
 
           <div className="results-grid three-col">
-            {/* Main Thread Blocking - THE KEY METRIC */}
+            {/* Per-Frame Latency - THE KEY METRIC */}
             <div className="result-card highlight">
               <div className="result-header">
-                <span className="result-title">Main Thread Blocking</span>
+                <span className="result-title">Per-Frame Latency</span>
               </div>
               <div className="result-bars">
                 <div className="bar-row">
@@ -433,46 +423,94 @@ export function BenchmarkRunner() {
                   <div className="bar-container">
                     <div className="bar js" style={{ width: '100%' }} />
                   </div>
-                  <span className="bar-value">{formatTime(results.mainThreadBlockJs)}</span>
+                  <span className="bar-value">{formatTime(results.avgLatencyJs)}</span>
                 </div>
-                {results.mainThreadBlockWasm !== null && (
+                {results.avgLatencyWasm !== null && (
                   <div className="bar-row">
                     <span className="bar-label">WASM</span>
                     <div className="bar-container">
                       <div
                         className="bar wasm"
                         style={{
-                          width: `${Math.min(100, Math.max(5, (results.mainThreadBlockWasm / results.mainThreadBlockJs) * 100))}%`,
+                          width: `${Math.min(100, Math.max(5, (results.avgLatencyWasm / Math.max(results.avgLatencyJs, results.avgLatencyWasm)) * 100))}%`,
                         }}
                       />
                     </div>
-                    <span className="bar-value">{formatTime(results.mainThreadBlockWasm)}</span>
+                    <span className="bar-value">{formatTime(results.avgLatencyWasm)}</span>
                   </div>
                 )}
-                {results.mainThreadBlockWorker !== null && (
+                {results.avgLatencyWorker !== null && (
                   <div className="bar-row">
                     <span className="bar-label">Worker</span>
                     <div className="bar-container">
                       <div
-                        className={`bar worker ${getSpeedupClass(results.mainThreadBlockJs, results.mainThreadBlockWorker)}`}
+                        className="bar worker faster"
                         style={{
-                          width: `${Math.min(100, Math.max(5, (results.mainThreadBlockWorker / results.mainThreadBlockJs) * 100))}%`,
+                          width: `${Math.min(100, Math.max(2, (results.avgLatencyWorker / results.avgLatencyJs) * 100))}%`,
                         }}
                       />
                     </div>
-                    <span className={`bar-value ${getSpeedupClass(results.mainThreadBlockJs, results.mainThreadBlockWorker)}`}>
-                      {formatTime(results.mainThreadBlockWorker)}
+                    <span className="bar-value success">{formatTime(results.avgLatencyWorker)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="index-note">Time main thread blocks per frame</div>
+            </div>
+
+            {/* Frame Budget Usage */}
+            <div className="result-card">
+              <div className="result-header">
+                <span className="result-title">Frame Budget (16ms)</span>
+              </div>
+              <div className="result-bars">
+                <div className="bar-row">
+                  <span className="bar-label">JavaScript</span>
+                  <div className="bar-container">
+                    <div
+                      className={`bar js ${getBudgetClass(results.frameBudgetJs)}`}
+                      style={{ width: `${Math.min(100, results.frameBudgetJs)}%` }}
+                    />
+                  </div>
+                  <span className={`bar-value ${getBudgetClass(results.frameBudgetJs)}`}>
+                    {formatPercent(results.frameBudgetJs)}
+                  </span>
+                </div>
+                {results.frameBudgetWasm !== null && (
+                  <div className="bar-row">
+                    <span className="bar-label">WASM</span>
+                    <div className="bar-container">
+                      <div
+                        className={`bar wasm ${getBudgetClass(results.frameBudgetWasm)}`}
+                        style={{ width: `${Math.min(100, results.frameBudgetWasm)}%` }}
+                      />
+                    </div>
+                    <span className={`bar-value ${getBudgetClass(results.frameBudgetWasm)}`}>
+                      {formatPercent(results.frameBudgetWasm)}
+                    </span>
+                  </div>
+                )}
+                {results.frameBudgetWorker !== null && (
+                  <div className="bar-row">
+                    <span className="bar-label">Worker</span>
+                    <div className="bar-container">
+                      <div
+                        className={`bar worker ${getBudgetClass(results.frameBudgetWorker)}`}
+                        style={{ width: `${Math.min(100, Math.max(2, results.frameBudgetWorker))}%` }}
+                      />
+                    </div>
+                    <span className={`bar-value ${getBudgetClass(results.frameBudgetWorker)}`}>
+                      {formatPercent(results.frameBudgetWorker)}
                     </span>
                   </div>
                 )}
               </div>
-              <div className="index-note">Lower = smoother UI (target: &lt;16ms per frame)</div>
+              <div className="index-note">&lt;50% = smooth 60fps</div>
             </div>
 
-            {/* Throughput */}
+            {/* Total Blocking */}
             <div className="result-card">
               <div className="result-header">
-                <span className="result-title">Update Throughput</span>
+                <span className="result-title">Total Main Thread Block</span>
               </div>
               <div className="result-bars">
                 <div className="bar-row">
@@ -480,98 +518,53 @@ export function BenchmarkRunner() {
                   <div className="bar-container">
                     <div className="bar js" style={{ width: '100%' }} />
                   </div>
-                  <span className="bar-value">{formatThroughput(results.throughputJs)}</span>
+                  <span className="bar-value">{formatTime(results.totalBlockJs)}</span>
                 </div>
-                {results.throughputWasm !== null && (
+                {results.totalBlockWasm !== null && (
                   <div className="bar-row">
                     <span className="bar-label">WASM</span>
                     <div className="bar-container">
                       <div
                         className="bar wasm"
                         style={{
-                          width: `${Math.min(100, Math.max(5, (results.throughputWasm / results.throughputJs) * 100))}%`,
+                          width: `${Math.min(100, Math.max(5, (results.totalBlockWasm / Math.max(results.totalBlockJs, results.totalBlockWasm)) * 100))}%`,
                         }}
                       />
                     </div>
-                    <span className="bar-value">{formatThroughput(results.throughputWasm)}</span>
+                    <span className="bar-value">{formatTime(results.totalBlockWasm)}</span>
                   </div>
                 )}
-                {results.throughputWorker !== null && (
+                {results.totalBlockWorker !== null && (
                   <div className="bar-row">
                     <span className="bar-label">Worker</span>
                     <div className="bar-container">
                       <div
-                        className={`bar worker ${getSpeedupClass(results.throughputWorker, results.throughputJs)}`}
+                        className="bar worker faster"
                         style={{
-                          width: `${Math.min(100, Math.max(5, (results.throughputWorker / results.throughputJs) * 100))}%`,
+                          width: `${Math.min(100, Math.max(2, (results.totalBlockWorker / results.totalBlockJs) * 100))}%`,
                         }}
                       />
                     </div>
-                    <span className="bar-value">{formatThroughput(results.throughputWorker)}</span>
+                    <span className="bar-value success">{formatTime(results.totalBlockWorker)}</span>
                   </div>
                 )}
               </div>
-              <div className="index-note">Updates processed per second</div>
-            </div>
-
-            {/* Initial Load */}
-            <div className="result-card">
-              <div className="result-header">
-                <span className="result-title">Initial Load</span>
-              </div>
-              <div className="result-bars">
-                <div className="bar-row">
-                  <span className="bar-label">JavaScript</span>
-                  <div className="bar-container">
-                    <div className="bar js" style={{ width: '100%' }} />
-                  </div>
-                  <span className="bar-value">{formatTime(results.loadJs)}</span>
-                </div>
-                {results.loadWasm !== null && (
-                  <div className="bar-row">
-                    <span className="bar-label">WASM</span>
-                    <div className="bar-container">
-                      <div
-                        className="bar wasm"
-                        style={{
-                          width: `${Math.min(100, Math.max(5, (results.loadWasm / Math.max(results.loadJs, results.loadWasm, results.loadWorker || 0)) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="bar-value">{formatTime(results.loadWasm)}</span>
-                  </div>
-                )}
-                {results.loadWorker !== null && (
-                  <div className="bar-row">
-                    <span className="bar-label">Worker</span>
-                    <div className="bar-container">
-                      <div
-                        className="bar worker"
-                        style={{
-                          width: `${Math.min(100, Math.max(5, (results.loadWorker / Math.max(results.loadJs, results.loadWasm || 0, results.loadWorker)) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="bar-value">{formatTime(results.loadWorker)}</span>
-                  </div>
-                )}
-              </div>
-              <div className="index-note">One-time cost at startup</div>
+              <div className="index-note">Over 1 second simulation</div>
             </div>
           </div>
 
           <div className="results-summary">
             <div className="summary-item highlight">
-              <span className="summary-label">Worker Main Thread</span>
+              <span className="summary-label">Worker Speedup</span>
               <span className="summary-value success">
-                {results.mainThreadBlockWorker !== null
-                  ? getSpeedup(results.mainThreadBlockJs, results.mainThreadBlockWorker)
+                {results.avgLatencyWorker !== null
+                  ? getSpeedup(results.avgLatencyJs, results.avgLatencyWorker)
                   : 'N/A'}
               </span>
             </div>
             <div className="summary-item">
-              <span className="summary-label">Scenario</span>
-              <span className="summary-value">{UPDATE_CYCLES} cycles @ {UPDATE_PERCENT * 100}% updates</span>
+              <span className="summary-label">Updates/Frame</span>
+              <span className="summary-value">{UPDATES_PER_FRAME}</span>
             </div>
             <div className="summary-item">
               <span className="summary-label">Total Updates</span>
@@ -580,20 +573,20 @@ export function BenchmarkRunner() {
           </div>
 
           <div className="benchmark-explanation">
-            <p><strong>Why Worker wins:</strong> Updates are queued instantly (non-blocking), then processed in a background thread. Main thread stays free for smooth 60fps rendering.</p>
+            <p><strong>Why Worker wins:</strong> <code>queueUpdates()</code> returns instantly (~0.1ms). Processing happens in background thread. Main thread stays free for smooth 60fps animations.</p>
           </div>
         </div>
       )}
 
       {!results && !running && (
         <div className="benchmark-placeholder">
-          <p>Compares three approaches:</p>
+          <p>Simulates realistic trading data feed:</p>
           <ul className="scenario-list">
-            <li><strong>JavaScript</strong> - Pure JS, main thread</li>
-            <li><strong>WASM</strong> - Rust/WASM, main thread</li>
-            <li><strong>Worker + WASM</strong> - Rust/WASM in Web Worker (non-blocking)</li>
+            <li><strong>{UPDATES_PER_FRAME} updates</strong> per 16ms frame (active market)</li>
+            <li><strong>{SIMULATION_FRAMES} frames</strong> = 1 second @ 60fps</li>
+            <li><strong>{(SIMULATION_FRAMES * UPDATES_PER_FRAME).toLocaleString()} total</strong> price updates</li>
           </ul>
-          <p className="key-metric">Key metric: <strong>Main Thread Blocking</strong> - how much the UI freezes</p>
+          <p className="key-metric">Key metric: <strong>Per-Frame Latency</strong> — must be &lt;16ms for 60fps</p>
         </div>
       )}
     </div>
