@@ -41,6 +41,9 @@ export type { CSVExportOptions } from './utils/csv';
 export { useAdaptiveFlash } from './hooks/useAdaptiveFlash';
 export type { AdaptiveFlashResult } from './hooks/useAdaptiveFlash';
 
+export { useGridStore } from './hooks/useGridStore';
+export type { StoreType, UseGridStoreConfig, GridStoreResult } from './hooks/useGridStore';
+
 // WASM bridge (for direct access to sorting/filtering)
 export {
   initWasm,
