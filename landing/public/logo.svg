@@ -1,0 +1,10 @@
+<svg width="180" height="40" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon -->
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="#22c55e"/>
+  <path d="M17 9L28 31H23L17 20L11 31H6L17 9Z" fill="#0a0a0b"/>
+  <rect x="29" y="22" width="5" height="9" rx="1" fill="#0a0a0b" opacity="0.7"/>
+
+  <!-- Wordmark -->
+  <text x="46" y="27" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="600" fill="#f4f4f5">AskTurret</text>
+  <text x="136" y="27" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="400" fill="#71717a">/grid</text>
+</svg>
