@@ -69,7 +69,7 @@ export {
   benchRepeatedFilter,
 } from './wasm/GridCore';
 
-// WasmGridStore - new WASM-first architecture
+// WasmGridStore - WASM-first architecture
 // Data lives in WASM, JS only receives indices and visible rows
 export {
   WasmGridStore,
@@ -79,3 +79,7 @@ export {
   type RowUpdate,
   type SortDirection as WasmSortDirection,
 } from './wasm/WasmGridStore';
+
+// WorkerGridStore - Web Worker + WASM for non-blocking updates
+// Best for high-frequency trading updates (batches at 60fps, off main thread)
+export { WorkerGridStore, type WorkerGridStoreConfig, type ViewportInfo } from './wasm/WorkerGridStore';
