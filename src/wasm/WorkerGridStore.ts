@@ -62,11 +62,132 @@ type WorkerResponse =
   | { type: 'error'; message: string };
 
 // Worker code as inline string (for bundler compatibility)
+// Uses JS fallback since blob URL workers can't do dynamic imports
 const WORKER_CODE = `
-// Worker-side WASM GridStore
-let wasmModule = null;
+// Worker-side GridStore (JS implementation for blob URL compatibility)
+// The key benefit is non-blocking main thread, not WASM speed
+
+class JsGridStore {
+  constructor(schema) {
+    this.schema = schema;
+    this.data = [];
+    this.idMap = new Map();
+    this.idColumn = schema.findIndex(c => c.primaryKey) || 0;
+    this.indexedColumns = schema.filter(c => c.indexed).map(c => c.name);
+    this.filterText = '';
+    this.sortColumn = null;
+    this.sortDir = 'none';
+    this.viewCache = null;
+  }
+
+  loadRows(rows) {
+    this.data = rows.map(r => ({...r}));
+    this.idMap.clear();
+    const idField = this.schema[this.idColumn].name;
+    this.data.forEach((row, i) => {
+      this.idMap.set(row[idField], i);
+    });
+    this.viewCache = null;
+    return this.data.length;
+  }
+
+  batchUpdate(updates) {
+    const idField = this.schema[this.idColumn].name;
+    for (const update of updates) {
+      const idx = this.idMap.get(update[idField] || update.id);
+      if (idx !== undefined) {
+        Object.assign(this.data[idx], update);
+      }
+    }
+    this.viewCache = null;
+    return updates.length;
+  }
+
+  setFilter(text) {
+    this.filterText = text.toLowerCase();
+    this.viewCache = null;
+  }
+
+  clearFilter() {
+    this.filterText = '';
+    this.viewCache = null;
+  }
+
+  setSort(column, dir) {
+    this.sortColumn = column;
+    this.sortDir = dir;
+    this.viewCache = null;
+  }
+
+  clearSort() {
+    this.sortColumn = null;
+    this.sortDir = 'none';
+    this.viewCache = null;
+  }
+
+  viewCount() {
+    this._ensureView();
+    return this.viewCache.length;
+  }
+
+  rowCount() {
+    return this.data.length;
+  }
+
+  getVisibleRows(start, count) {
+    this._ensureView();
+    const result = [];
+    for (let i = start; i < Math.min(start + count, this.viewCache.length); i++) {
+      result.push(this.data[this.viewCache[i]]);
+    }
+    return result;
+  }
+
+  _ensureView() {
+    if (this.viewCache) return;
+
+    // Build indices
+    let indices = this.data.map((_, i) => i);
+
+    // Filter
+    if (this.filterText) {
+      indices = indices.filter(i => {
+        const row = this.data[i];
+        return this.indexedColumns.some(col => {
+          const val = row[col];
+          return val && String(val).toLowerCase().includes(this.filterText);
+        });
+      });
+    }
+
+    // Sort
+    if (this.sortColumn && this.sortDir !== 'none') {
+      const col = this.sortColumn;
+      const dir = this.sortDir === 'asc' ? 1 : -1;
+      indices.sort((a, b) => {
+        const va = this.data[a][col];
+        const vb = this.data[b][col];
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        if (typeof va === 'number' && typeof vb === 'number') {
+          return (va - vb) * dir;
+        }
+        return String(va).localeCompare(String(vb)) * dir;
+      });
+    }
+
+    this.viewCache = indices;
+  }
+
+  free() {
+    this.data = [];
+    this.idMap.clear();
+    this.viewCache = null;
+  }
+}
+
 let store = null;
-let schema = null;
 let batchInterval = 16;
 
 // Update batching
@@ -78,23 +199,6 @@ let lastBatchTime = 0;
 // Viewport tracking
 let viewportStart = 0;
 let viewportEnd = 50;
-
-async function initWasm() {
-  try {
-    const wasm = await import('@askturret/grid-wasm');
-    if (wasm.default && typeof wasm.default === 'function') {
-      await wasm.default();
-    }
-    if (!wasm.GridStore) {
-      throw new Error('GridStore not available');
-    }
-    wasmModule = wasm;
-    return true;
-  } catch (e) {
-    console.warn('[Worker] WASM not available:', e);
-    return false;
-  }
-}
 
 function sendVisibleRows() {
   if (!store) return;
@@ -150,16 +254,9 @@ self.onmessage = async (e) => {
 
   switch (msg.type) {
     case 'init': {
-      schema = msg.schema;
       batchInterval = msg.batchInterval || 16;
-
-      const wasmAvailable = await initWasm();
-      if (wasmAvailable && wasmModule) {
-        store = new wasmModule.GridStore(schema);
-        self.postMessage({ type: 'ready' });
-      } else {
-        self.postMessage({ type: 'error', message: 'WASM not available in worker' });
-      }
+      store = new JsGridStore(msg.schema);
+      self.postMessage({ type: 'ready' });
       break;
     }
 
@@ -195,11 +292,8 @@ self.onmessage = async (e) => {
     }
 
     case 'setSort': {
-      if (!store || !wasmModule) return;
-      const dir = msg.direction === 'asc' ? wasmModule.SortDir.Asc
-                : msg.direction === 'desc' ? wasmModule.SortDir.Desc
-                : wasmModule.SortDir.None;
-      store.setSort(msg.column, dir);
+      if (!store) return;
+      store.setSort(msg.column, msg.direction);
       sendVisibleRows();
       break;
     }
