@@ -12,21 +12,21 @@
     <!-- Badge -->
     <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-grid-surface border border-grid-border mb-8">
       <span class="w-2 h-2 rounded-full bg-grid-bid animate-pulse"></span>
-      <span class="text-sm text-grid-muted">Now with TimeSales & PositionLadder</span>
+      <span class="text-sm text-grid-muted">Three engines: Worker, WASM, or pure JS</span>
     </div>
 
     <!-- Headline -->
     <h1 class="text-5xl md:text-7xl font-bold tracking-tight mb-6">
       <span class="text-grid-text">1 million rows.</span><br />
       <span class="text-grid-accent">60 FPS.</span>
-      <span class="text-grid-text">Zero server.</span>
+      <span class="text-grid-text">Your architecture.</span>
     </h1>
 
     <!-- Subheadline -->
     <p class="text-xl md:text-2xl text-grid-muted max-w-3xl mx-auto mb-10">
-      High-performance React data grid with Rust/WASM acceleration.
+      Pick the right engine for your workload. Worker for streaming, WASM for filtering, JS for simplicity.
       <br class="hidden md:block" />
-      Built for trading applications handling real-time updates.
+      One API, three battle-tested architectures.
     </p>
 
     <!-- Install command -->
@@ -72,30 +72,32 @@
     <!-- Secondary links -->
     <div class="flex items-center justify-center gap-6 mb-16 text-sm">
       <a href="/benchmarks/" class="text-grid-muted hover:text-grid-accent transition-colors">
-        View Benchmarks
+        Run Benchmarks
       </a>
       <a href="https://alprimak.github.io/askturret-grid" class="text-grid-muted hover:text-grid-accent transition-colors">
         Documentation
       </a>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
-      <div class="text-center">
-        <div class="text-3xl font-bold text-grid-accent">12ms</div>
-        <div class="text-sm text-grid-muted">100k row sort</div>
+    <!-- Engine comparison -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+      <div class="feature-card text-center">
+        <div class="text-2xl font-bold text-grid-accent mb-1">Worker</div>
+        <div class="text-sm text-grid-muted mb-2">Real-time streaming</div>
+        <div class="text-3xl font-bold text-grid-bid">40μs</div>
+        <div class="text-xs text-grid-muted">per frame</div>
       </div>
-      <div class="text-center">
-        <div class="text-3xl font-bold text-grid-bid">&lt;1ms</div>
-        <div class="text-sm text-grid-muted">Trigram filter</div>
+      <div class="feature-card text-center">
+        <div class="text-2xl font-bold text-grid-accent mb-1">WASM</div>
+        <div class="text-sm text-grid-muted mb-2">Heavy filtering</div>
+        <div class="text-3xl font-bold text-grid-bid">&lt;2ms</div>
+        <div class="text-xs text-grid-muted">1M row search</div>
       </div>
-      <div class="text-center">
-        <div class="text-3xl font-bold text-grid-text">60 FPS</div>
-        <div class="text-sm text-grid-muted">Maintained</div>
-      </div>
-      <div class="text-center">
-        <div class="text-3xl font-bold text-grid-text">~45kb</div>
-        <div class="text-sm text-grid-muted">Bundle size</div>
+      <div class="feature-card text-center">
+        <div class="text-2xl font-bold text-grid-accent mb-1">JS</div>
+        <div class="text-sm text-grid-muted mb-2">Zero dependencies</div>
+        <div class="text-3xl font-bold text-grid-bid">~45kb</div>
+        <div class="text-xs text-grid-muted">bundle size</div>
       </div>
     </div>
   </div>

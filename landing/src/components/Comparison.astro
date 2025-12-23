@@ -1,56 +1,63 @@
 ---
 const comparisons = [
   {
-    feature: '100k row sort',
-    serverSide: '~200ms + network',
-    askturret: '12ms client-side',
+    feature: 'Real-time updates',
+    agGrid: 'Manual batching',
+    tanstack: 'Manual',
+    askturret: 'Worker auto-batching',
     winner: 'askturret',
   },
   {
-    feature: 'Infrastructure',
-    serverSide: 'Backend required',
-    askturret: 'None',
+    feature: '1M row filtering',
+    agGrid: 'Slow (JS)',
+    tanstack: 'Slow (JS)',
+    askturret: '<2ms (WASM trigram)',
+    winner: 'askturret',
+  },
+  {
+    feature: 'Architecture choice',
+    agGrid: 'One size fits all',
+    tanstack: 'Headless only',
+    askturret: 'Worker / WASM / JS',
     winner: 'askturret',
   },
   {
     feature: 'Flash highlights',
-    serverSide: 'Basic or none',
+    agGrid: 'Basic',
+    tanstack: 'None',
     askturret: 'Adaptive (auto-degrades)',
     winner: 'askturret',
   },
   {
     feature: 'Trading components',
-    serverSide: 'Separate packages',
+    agGrid: 'Separate purchase',
+    tanstack: 'None',
     askturret: 'Built-in',
     winner: 'askturret',
   },
   {
-    feature: 'Virtualization',
-    serverSide: 'Config required',
-    askturret: 'Zero-config (automatic)',
-    winner: 'askturret',
-  },
-  {
     feature: 'Bundle size',
-    serverSide: '150-300kb',
+    agGrid: '~300kb',
+    tanstack: '~15kb',
     askturret: '~45kb',
-    winner: 'askturret',
+    winner: 'neutral',
   },
   {
     feature: 'License',
-    serverSide: 'Often commercial',
+    agGrid: 'Commercial ($$$)',
+    tanstack: 'MIT',
     askturret: 'MIT',
-    winner: 'askturret',
+    winner: 'neutral',
   },
 ];
 ---
 
 <section id="comparison" class="py-24 px-4 bg-grid-surface/50">
-  <div class="max-w-4xl mx-auto">
+  <div class="max-w-5xl mx-auto">
     <div class="text-center mb-16">
-      <h2 class="text-4xl font-bold text-grid-text mb-4">vs Traditional Grids</h2>
+      <h2 class="text-4xl font-bold text-grid-text mb-4">vs Other Grids</h2>
       <p class="text-xl text-grid-muted max-w-2xl mx-auto">
-        Server-side grid performance without the server
+        The flexibility of headless, the power of enterprise, the price of open source
       </p>
     </div>
 
@@ -59,7 +66,8 @@ const comparisons = [
         <thead>
           <tr class="border-b border-grid-border">
             <th class="text-left py-4 px-4 text-grid-muted font-medium">Feature</th>
-            <th class="text-left py-4 px-4 text-grid-muted font-medium">Server-Side Grids</th>
+            <th class="text-left py-4 px-4 text-grid-muted font-medium">AG Grid</th>
+            <th class="text-left py-4 px-4 text-grid-muted font-medium">TanStack Table</th>
             <th class="text-left py-4 px-4 text-grid-accent font-medium">@askturret/grid</th>
           </tr>
         </thead>
@@ -68,13 +76,25 @@ const comparisons = [
             comparisons.map((row) => (
               <tr class="border-b border-grid-border/50 hover:bg-grid-surface/50 transition-colors">
                 <td class="py-4 px-4 text-grid-text font-medium">{row.feature}</td>
-                <td class="py-4 px-4 text-grid-muted">{row.serverSide}</td>
-                <td class="py-4 px-4 text-grid-bid">{row.askturret}</td>
+                <td class="py-4 px-4 text-grid-muted">{row.agGrid}</td>
+                <td class="py-4 px-4 text-grid-muted">{row.tanstack}</td>
+                <td class={`py-4 px-4 ${row.winner === 'askturret' ? 'text-grid-bid' : 'text-grid-text'}`}>{row.askturret}</td>
               </tr>
             ))
           }
         </tbody>
       </table>
+    </div>
+
+    <!-- Benchmark CTA -->
+    <div class="mt-12 text-center">
+      <p class="text-grid-muted mb-4">Don't take our word for it — test your exact scenario</p>
+      <a href="/benchmarks/" class="btn-secondary inline-flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        Run Benchmarks
+      </a>
     </div>
   </div>
 </section>
