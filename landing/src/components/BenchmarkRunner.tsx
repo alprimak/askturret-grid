@@ -7,26 +7,68 @@ import {
   type ColumnSchema,
 } from '@askturret/grid';
 
+// Benchmark patterns
+type BenchmarkPattern = 'realtime' | 'batch' | 'filter' | 'mixed';
+
+interface PatternConfig {
+  name: string;
+  description: string;
+  updatesPerFrame: number;
+  frames: number;
+  filterDuring: boolean;
+  batchMode: boolean;
+}
+
+const PATTERNS: Record<BenchmarkPattern, PatternConfig> = {
+  realtime: {
+    name: 'Real-time Streaming',
+    description: '200 updates every 16ms — live market data',
+    updatesPerFrame: 200,
+    frames: 60,
+    filterDuring: false,
+    batchMode: false,
+  },
+  batch: {
+    name: 'Large Batch',
+    description: '10,000 updates at once — bulk data load',
+    updatesPerFrame: 10000,
+    frames: 10,
+    filterDuring: false,
+    batchMode: true,
+  },
+  filter: {
+    name: 'Filter + Updates',
+    description: 'Active filter while data streams — search while trading',
+    updatesPerFrame: 200,
+    frames: 60,
+    filterDuring: true,
+    batchMode: false,
+  },
+  mixed: {
+    name: 'Mixed Workload',
+    description: 'Varied batch sizes — realistic trading session',
+    updatesPerFrame: 500,
+    frames: 40,
+    filterDuring: false,
+    batchMode: false,
+  },
+};
+
 interface BenchmarkResults {
-  // Per-update call latency (how long main thread blocks per update)
+  pattern: BenchmarkPattern;
   avgLatencyJs: number;
   avgLatencyWasm: number | null;
   avgLatencyWorker: number | null;
-
-  // Total main thread blocking over simulation
   totalBlockJs: number;
   totalBlockWasm: number | null;
   totalBlockWorker: number | null;
-
-  // Frame budget (% of 16ms used per frame)
   frameBudgetJs: number;
   frameBudgetWasm: number | null;
   frameBudgetWorker: number | null;
-
-  // Initial load
   loadJs: number;
   loadWasm: number | null;
   loadWorker: number | null;
+  winner: 'js' | 'wasm' | 'worker';
 }
 
 interface TestRow {
@@ -52,11 +94,11 @@ function generateRows(count: number): TestRow[] {
   }));
 }
 
-function generateSmallBatch(batchSize: number, totalRows: number): { id: string; price: number; change: number }[] {
+function generateBatch(batchSize: number, totalRows: number): { id: string; price: number; change: number }[] {
   const updates: { id: string; price: number; change: number }[] = [];
   const indices = new Set<number>();
 
-  while (indices.size < batchSize) {
+  while (indices.size < Math.min(batchSize, totalRows)) {
     indices.add(Math.floor(Math.random() * totalRows));
   }
 
@@ -81,6 +123,16 @@ class JsGridStore {
   loadRows(rows: TestRow[]): void {
     this.data = [...rows];
     this.idMap = new Map(rows.map((r, i) => [r.id, i]));
+    this.viewCache = null;
+  }
+
+  setFilter(text: string): void {
+    this.filterText = text.toLowerCase();
+    this.viewCache = null;
+  }
+
+  clearFilter(): void {
+    this.filterText = '';
     this.viewCache = null;
   }
 
@@ -125,16 +177,13 @@ const SCHEMA: ColumnSchema[] = [
 
 const ROW_COUNTS = [10000, 50000, 100000];
 const ROW_LABELS = ['10k', '50k', '100k'];
-
-// Realistic trading scenario parameters
-const SIMULATION_FRAMES = 60; // 1 second at 60fps
-const UPDATES_PER_FRAME = 200; // ~200 price updates per 16ms tick (realistic for active market)
-const FRAME_BUDGET_MS = 16; // Target frame time for 60fps
+const FRAME_BUDGET_MS = 16;
 
 export function BenchmarkRunner() {
   const [wasmLoaded, setWasmLoaded] = useState(false);
   const [wasmLoading, setWasmLoading] = useState(false);
   const [rowCountIndex, setRowCountIndex] = useState(2);
+  const [pattern, setPattern] = useState<BenchmarkPattern>('realtime');
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState('');
   const [results, setResults] = useState<BenchmarkResults | null>(null);
@@ -143,7 +192,8 @@ export function BenchmarkRunner() {
   const workerStoreRef = useRef<WorkerGridStore<TestRow> | null>(null);
 
   const rowCount = ROW_COUNTS[rowCountIndex];
-  const totalUpdates = SIMULATION_FRAMES * UPDATES_PER_FRAME;
+  const patternConfig = PATTERNS[pattern];
+  const totalUpdates = patternConfig.updatesPerFrame * patternConfig.frames;
 
   useEffect(() => {
     async function load() {
@@ -173,15 +223,15 @@ export function BenchmarkRunner() {
     await new Promise((r) => setTimeout(r, 50));
 
     try {
-      // Generate initial data
+      const config = PATTERNS[pattern];
       const rows = generateRows(rowCount);
 
-      // Pre-generate all update batches (small, realistic batches)
+      // Pre-generate update batches
       setProgress('Pre-generating update batches...');
       await new Promise((r) => setTimeout(r, 10));
 
-      const updateBatches = Array.from({ length: SIMULATION_FRAMES }, () =>
-        generateSmallBatch(UPDATES_PER_FRAME, rowCount)
+      const updateBatches = Array.from({ length: config.frames }, () =>
+        generateBatch(config.updatesPerFrame, rowCount)
       );
 
       // =====================
@@ -192,25 +242,31 @@ export function BenchmarkRunner() {
 
       const jsStore = new JsGridStore();
 
-      // JS Load
       const loadJsStart = performance.now();
       jsStore.loadRows(rows);
       const loadJs = performance.now() - loadJsStart;
 
-      // JS Updates - measure per-frame latency
+      if (config.filterDuring) {
+        jsStore.setFilter('AAPL');
+      }
+
       const jsLatencies: number[] = [];
-      for (let i = 0; i < SIMULATION_FRAMES; i++) {
+      for (let i = 0; i < config.frames; i++) {
         const frameStart = performance.now();
         jsStore.batchUpdate(updateBatches[i]);
-        jsStore.getViewCount(); // Simulate render check
+        jsStore.getViewCount();
         jsLatencies.push(performance.now() - frameStart);
       }
       const totalBlockJs = jsLatencies.reduce((a, b) => a + b, 0);
-      const avgLatencyJs = totalBlockJs / SIMULATION_FRAMES;
+      const avgLatencyJs = totalBlockJs / config.frames;
       const frameBudgetJs = (avgLatencyJs / FRAME_BUDGET_MS) * 100;
 
+      if (config.filterDuring) {
+        jsStore.clearFilter();
+      }
+
       // =====================
-      // WASM DIRECT BENCHMARK
+      // WASM BENCHMARK
       // =====================
       let loadWasm: number | null = null;
       let avgLatencyWasm: number | null = null;
@@ -225,31 +281,37 @@ export function BenchmarkRunner() {
         const store = await WasmGridStore.create<TestRow>(SCHEMA);
         wasmStoreRef.current = store;
 
-        // WASM Load
         const loadWasmStart = performance.now();
         store.loadRows(rows);
         loadWasm = performance.now() - loadWasmStart;
 
-        // WASM Updates
+        if (config.filterDuring) {
+          store.setFilter('AAPL');
+        }
+
         const wasmLatencies: number[] = [];
-        for (let i = 0; i < SIMULATION_FRAMES; i++) {
+        for (let i = 0; i < config.frames; i++) {
           const frameStart = performance.now();
           store.updateRows(updateBatches[i]);
           store.getViewCount();
           wasmLatencies.push(performance.now() - frameStart);
 
           if (i % 10 === 0) {
-            setProgress(`WASM frame ${i + 1}/${SIMULATION_FRAMES}...`);
+            setProgress(`WASM frame ${i + 1}/${config.frames}...`);
             await new Promise((r) => setTimeout(r, 0));
           }
         }
         totalBlockWasm = wasmLatencies.reduce((a, b) => a + b, 0);
-        avgLatencyWasm = totalBlockWasm / SIMULATION_FRAMES;
+        avgLatencyWasm = totalBlockWasm / config.frames;
         frameBudgetWasm = (avgLatencyWasm / FRAME_BUDGET_MS) * 100;
+
+        if (config.filterDuring) {
+          store.clearFilter();
+        }
       }
 
       // =====================
-      // WORKER + JS BENCHMARK
+      // WORKER BENCHMARK
       // =====================
       let loadWorker: number | null = null;
       let avgLatencyWorker: number | null = null;
@@ -266,34 +328,46 @@ export function BenchmarkRunner() {
           batchInterval: 16,
         });
         workerStoreRef.current = workerStore;
-
-        // Set viewport
         workerStore.setViewport(0, 50);
 
-        // Worker Load
         const loadWorkerStart = performance.now();
         await workerStore.loadRows(rows);
         loadWorker = performance.now() - loadWorkerStart;
 
-        // Worker Updates - measure how fast queueUpdates returns (non-blocking)
+        if (config.filterDuring) {
+          workerStore.setFilter('AAPL');
+        }
+
         const workerLatencies: number[] = [];
-        for (let i = 0; i < SIMULATION_FRAMES; i++) {
+        for (let i = 0; i < config.frames; i++) {
           const frameStart = performance.now();
-          workerStore.queueUpdates(updateBatches[i]); // Should return instantly
+          workerStore.queueUpdates(updateBatches[i]);
           workerLatencies.push(performance.now() - frameStart);
         }
 
-        // Wait for processing to complete
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 200));
 
         totalBlockWorker = workerLatencies.reduce((a, b) => a + b, 0);
-        avgLatencyWorker = totalBlockWorker / SIMULATION_FRAMES;
+        avgLatencyWorker = totalBlockWorker / config.frames;
         frameBudgetWorker = (avgLatencyWorker / FRAME_BUDGET_MS) * 100;
+
+        if (config.filterDuring) {
+          workerStore.clearFilter();
+        }
       } catch (e) {
         console.warn('Worker benchmark failed:', e);
       }
 
+      // Determine winner
+      const times = [
+        { name: 'js' as const, time: avgLatencyJs },
+        { name: 'wasm' as const, time: avgLatencyWasm ?? Infinity },
+        { name: 'worker' as const, time: avgLatencyWorker ?? Infinity },
+      ];
+      const winner = times.reduce((a, b) => (a.time < b.time ? a : b)).name;
+
       setResults({
+        pattern,
         avgLatencyJs,
         avgLatencyWasm,
         avgLatencyWorker,
@@ -306,6 +380,7 @@ export function BenchmarkRunner() {
         loadJs,
         loadWasm,
         loadWorker,
+        winner,
       });
       setProgress('');
     } catch (e) {
@@ -315,7 +390,7 @@ export function BenchmarkRunner() {
     }
 
     setRunning(false);
-  }, [rowCount, wasmLoaded]);
+  }, [rowCount, pattern, wasmLoaded]);
 
   const formatTime = (ms: number) => {
     if (ms < 0.01) return '<0.01ms';
@@ -349,11 +424,27 @@ export function BenchmarkRunner() {
     return 'bad';
   };
 
+  const getWinnerLabel = (type: 'js' | 'wasm' | 'worker') => {
+    if (type === 'js') return 'JavaScript';
+    if (type === 'wasm') return 'WasmGridStore';
+    return 'WorkerGridStore';
+  };
+
+  const getRecommendation = (winner: 'js' | 'wasm' | 'worker', pattern: BenchmarkPattern) => {
+    if (winner === 'worker') {
+      return 'Use WorkerGridStore (default) for best UI responsiveness';
+    }
+    if (winner === 'wasm') {
+      return 'Consider WasmGridStore for heavy filtering workloads';
+    }
+    return 'JavaScript baseline is sufficient for this workload';
+  };
+
   return (
     <div className="benchmark-runner">
       <div className="benchmark-controls">
         <div className="control-group">
-          <label className="control-label">Portfolio Size</label>
+          <label className="control-label">Dataset Size</label>
           <div className="slider-container">
             <input
               type="range"
@@ -375,6 +466,23 @@ export function BenchmarkRunner() {
         </div>
 
         <div className="control-group">
+          <label className="control-label">Update Pattern</label>
+          <div className="pattern-selector">
+            {(Object.keys(PATTERNS) as BenchmarkPattern[]).map((p) => (
+              <button
+                key={p}
+                className={`pattern-btn ${pattern === p ? 'active' : ''}`}
+                onClick={() => setPattern(p)}
+                disabled={running}
+                title={PATTERNS[p].description}
+              >
+                {PATTERNS[p].name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="control-group">
           <button
             className={`run-button ${running ? 'running' : ''}`}
             onClick={runBenchmarks}
@@ -389,6 +497,10 @@ export function BenchmarkRunner() {
             )}
           </button>
         </div>
+      </div>
+
+      <div className="pattern-description">
+        <strong>{patternConfig.name}:</strong> {patternConfig.description}
       </div>
 
       <div className={`wasm-status ${wasmLoaded ? 'loaded' : wasmLoading ? 'loading' : 'unavailable'}`}>
@@ -406,13 +518,14 @@ export function BenchmarkRunner() {
 
       {results && (
         <div className="benchmark-results">
-          <h3>Trading Simulation: {rowCount.toLocaleString()} instruments</h3>
+          <h3>{PATTERNS[results.pattern].name}: {rowCount.toLocaleString()} instruments</h3>
           <p className="scenario-desc">
-            {SIMULATION_FRAMES} frames × {UPDATES_PER_FRAME} updates = {totalUpdates.toLocaleString()} price ticks (1 second @ 60fps)
+            {patternConfig.frames} frames × {patternConfig.updatesPerFrame.toLocaleString()} updates = {totalUpdates.toLocaleString()} total
+            {patternConfig.filterDuring && ' (with active filter)'}
           </p>
 
           <div className="results-grid three-col">
-            {/* Per-Frame Latency - THE KEY METRIC */}
+            {/* Per-Frame Latency */}
             <div className="result-card highlight">
               <div className="result-header">
                 <span className="result-title">Per-Frame Latency</span>
@@ -421,22 +534,26 @@ export function BenchmarkRunner() {
                 <div className="bar-row">
                   <span className="bar-label">JavaScript</span>
                   <div className="bar-container">
-                    <div className="bar js" style={{ width: '100%' }} />
+                    <div className={`bar js ${results.winner === 'js' ? 'winner' : ''}`} style={{ width: '100%' }} />
                   </div>
-                  <span className="bar-value">{formatTime(results.avgLatencyJs)}</span>
+                  <span className={`bar-value ${results.winner === 'js' ? 'success' : ''}`}>
+                    {formatTime(results.avgLatencyJs)}
+                  </span>
                 </div>
                 {results.avgLatencyWasm !== null && (
                   <div className="bar-row">
                     <span className="bar-label">WASM</span>
                     <div className="bar-container">
                       <div
-                        className="bar wasm"
+                        className={`bar wasm ${results.winner === 'wasm' ? 'winner' : ''}`}
                         style={{
                           width: `${Math.min(100, Math.max(5, (results.avgLatencyWasm / Math.max(results.avgLatencyJs, results.avgLatencyWasm)) * 100))}%`,
                         }}
                       />
                     </div>
-                    <span className="bar-value">{formatTime(results.avgLatencyWasm)}</span>
+                    <span className={`bar-value ${results.winner === 'wasm' ? 'success' : ''}`}>
+                      {formatTime(results.avgLatencyWasm)}
+                    </span>
                   </div>
                 )}
                 {results.avgLatencyWorker !== null && (
@@ -444,20 +561,22 @@ export function BenchmarkRunner() {
                     <span className="bar-label">Worker</span>
                     <div className="bar-container">
                       <div
-                        className="bar worker faster"
+                        className={`bar worker ${results.winner === 'worker' ? 'winner' : ''}`}
                         style={{
                           width: `${Math.min(100, Math.max(2, (results.avgLatencyWorker / results.avgLatencyJs) * 100))}%`,
                         }}
                       />
                     </div>
-                    <span className="bar-value success">{formatTime(results.avgLatencyWorker)}</span>
+                    <span className={`bar-value ${results.winner === 'worker' ? 'success' : ''}`}>
+                      {formatTime(results.avgLatencyWorker)}
+                    </span>
                   </div>
                 )}
               </div>
               <div className="index-note">Time main thread blocks per frame</div>
             </div>
 
-            {/* Frame Budget Usage */}
+            {/* Frame Budget */}
             <div className="result-card">
               <div className="result-header">
                 <span className="result-title">Frame Budget (16ms)</span>
@@ -549,22 +668,22 @@ export function BenchmarkRunner() {
                   </div>
                 )}
               </div>
-              <div className="index-note">Over 1 second simulation</div>
+              <div className="index-note">Over full simulation</div>
             </div>
           </div>
 
           <div className="results-summary">
             <div className="summary-item highlight">
+              <span className="summary-label">Winner</span>
+              <span className="summary-value success">{getWinnerLabel(results.winner)}</span>
+            </div>
+            <div className="summary-item">
               <span className="summary-label">Worker Speedup</span>
-              <span className="summary-value success">
+              <span className="summary-value">
                 {results.avgLatencyWorker !== null
                   ? getSpeedup(results.avgLatencyJs, results.avgLatencyWorker)
                   : 'N/A'}
               </span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Updates/Frame</span>
-              <span className="summary-value">{UPDATES_PER_FRAME}</span>
             </div>
             <div className="summary-item">
               <span className="summary-label">Total Updates</span>
@@ -572,21 +691,22 @@ export function BenchmarkRunner() {
             </div>
           </div>
 
-          <div className="benchmark-explanation">
-            <p><strong>Why Worker wins:</strong> <code>queueUpdates()</code> returns instantly (~0.1ms). Processing happens in background thread. Main thread stays free for smooth 60fps animations.</p>
+          <div className="benchmark-recommendation">
+            <strong>Recommendation:</strong> {getRecommendation(results.winner, results.pattern)}
           </div>
         </div>
       )}
 
       {!results && !running && (
         <div className="benchmark-placeholder">
-          <p>Simulates realistic trading data feed:</p>
+          <p>Test different update patterns to find the best configuration:</p>
           <ul className="scenario-list">
-            <li><strong>{UPDATES_PER_FRAME} updates</strong> per 16ms frame (active market)</li>
-            <li><strong>{SIMULATION_FRAMES} frames</strong> = 1 second @ 60fps</li>
-            <li><strong>{(SIMULATION_FRAMES * UPDATES_PER_FRAME).toLocaleString()} total</strong> price updates</li>
+            <li><strong>Real-time Streaming</strong> — WorkerGridStore excels</li>
+            <li><strong>Large Batch</strong> — Compare bulk load performance</li>
+            <li><strong>Filter + Updates</strong> — Test trigram index benefit</li>
+            <li><strong>Mixed Workload</strong> — Realistic trading session</li>
           </ul>
-          <p className="key-metric">Key metric: <strong>Per-Frame Latency</strong> — must be &lt;16ms for 60fps</p>
+          <p className="key-metric">Select a pattern and click <strong>Run Benchmark</strong></p>
         </div>
       )}
     </div>
