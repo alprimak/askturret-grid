@@ -7,7 +7,6 @@ import { TopMoversDemo } from './TopMoversDemo';
 import { TimeSalesDemo } from './TimeSalesDemo';
 import { PositionLadderDemo } from './PositionLadderDemo';
 import { ThemingDemo } from './ThemingDemo';
-import { BenchmarkDemo } from './BenchmarkDemo';
 
 type DemoTab =
   | 'basic'
@@ -17,8 +16,7 @@ type DemoTab =
   | 'timesales'
   | 'ladder'
   | 'topmovers'
-  | 'theming'
-  | 'benchmark';
+  | 'theming';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<DemoTab>('basic');
@@ -79,12 +77,6 @@ export default function App() {
         >
           Theming
         </button>
-        <button
-          className={`tab ${activeTab === 'benchmark' ? 'active' : ''}`}
-          onClick={() => setActiveTab('benchmark')}
-        >
-          Benchmarks
-        </button>
       </div>
 
       {activeTab === 'basic' && <BasicDemo />}
@@ -95,7 +87,6 @@ export default function App() {
       {activeTab === 'ladder' && <PositionLadderDemo />}
       {activeTab === 'topmovers' && <TopMoversDemo />}
       {activeTab === 'theming' && <ThemingDemo />}
-      {activeTab === 'benchmark' && <BenchmarkDemo />}
     </div>
   );
 }
