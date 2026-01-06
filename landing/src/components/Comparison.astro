@@ -8,10 +8,10 @@ const comparisons = [
     winner: 'askturret',
   },
   {
-    feature: '1M row filtering',
-    agGrid: 'Slow (JS)',
-    tanstack: 'Slow (JS)',
-    askturret: '<2ms (WASM trigram)',
+    feature: 'Large dataset filtering',
+    agGrid: 'JavaScript (slow)',
+    tanstack: 'JavaScript (slow)',
+    askturret: 'WASM trigram index',
     winner: 'askturret',
   },
   {
@@ -37,9 +37,9 @@ const comparisons = [
   },
   {
     feature: 'Bundle size',
-    agGrid: '~300kb',
-    tanstack: '~15kb',
-    askturret: '~45kb',
+    agGrid: 'Large',
+    tanstack: 'Minimal (headless)',
+    askturret: 'Moderate (~45kb)',
     winner: 'neutral',
   },
   {

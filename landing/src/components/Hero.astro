@@ -83,22 +83,32 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
       <div class="feature-card text-center">
         <div class="text-2xl font-bold text-grid-accent mb-1">Worker</div>
-        <div class="text-sm text-grid-muted mb-2">Real-time streaming</div>
-        <div class="text-3xl font-bold text-grid-bid">40μs</div>
-        <div class="text-xs text-grid-muted">per frame</div>
+        <div class="text-sm text-grid-muted mb-3">Real-time streaming</div>
+        <div class="text-sm text-grid-text">Off main thread</div>
+        <div class="text-xs text-grid-muted">Non-blocking updates</div>
       </div>
       <div class="feature-card text-center">
         <div class="text-2xl font-bold text-grid-accent mb-1">WASM</div>
-        <div class="text-sm text-grid-muted mb-2">Heavy filtering</div>
-        <div class="text-3xl font-bold text-grid-bid">&lt;2ms</div>
-        <div class="text-xs text-grid-muted">1M row search</div>
+        <div class="text-sm text-grid-muted mb-3">Heavy filtering</div>
+        <div class="text-sm text-grid-text">Trigram indexing</div>
+        <div class="text-xs text-grid-muted">Instant search on 1M+ rows</div>
       </div>
       <div class="feature-card text-center">
         <div class="text-2xl font-bold text-grid-accent mb-1">JS</div>
-        <div class="text-sm text-grid-muted mb-2">Zero dependencies</div>
-        <div class="text-3xl font-bold text-grid-bid">~45kb</div>
-        <div class="text-xs text-grid-muted">bundle size</div>
+        <div class="text-sm text-grid-muted mb-3">Zero dependencies</div>
+        <div class="text-sm text-grid-text">~45kb gzipped</div>
+        <div class="text-xs text-grid-muted">Just works, no setup</div>
       </div>
+    </div>
+
+    <!-- Benchmark CTA -->
+    <div class="mt-8">
+      <a href="/benchmarks/" class="text-sm text-grid-muted hover:text-grid-accent transition-colors inline-flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        Run benchmarks on your machine →
+      </a>
     </div>
   </div>
 </section>
