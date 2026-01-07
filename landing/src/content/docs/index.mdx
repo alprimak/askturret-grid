@@ -1,0 +1,74 @@
+---
+title: '@askturret/grid Documentation'
+description: High-performance React data grid. 1 million rows at 60fps.
+template: splash
+draft: false
+hero:
+  tagline: High-performance React data grid with three engines. Worker for streaming, WASM for filtering, JS for simplicity.
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/alprimak/askturret-grid
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid>
+  <Card title="Pick Your Engine" icon="rocket">
+    Worker for non-blocking streaming, WASM for instant filtering, or pure JS for zero-dependency simplicity.
+  </Card>
+  <Card title="Trading Components" icon="bars">
+    OrderBook, TimeSales, PositionLadder, and TopMovers built-in.
+  </Card>
+  <Card title="Flash Highlighting" icon="star">
+    Green/red cell flashes on value changes. Adaptive mode auto-disables when FPS drops.
+  </Card>
+  <Card title="Column Management" icon="setting">
+    Resizable and reorderable columns with drag & drop. CSV export included.
+  </Card>
+</CardGrid>
+
+## Quick Example
+
+```tsx
+import { DataGrid } from '@askturret/grid';
+import '@askturret/grid/styles.css';
+
+const columns = [
+  { field: 'symbol', header: 'Symbol', sortable: true },
+  { field: 'price', header: 'Price', flashOnChange: true },
+  { field: 'volume', header: 'Volume' },
+];
+
+function App() {
+  return (
+    <DataGrid
+      data={positions}
+      columns={columns}
+      rowKey="symbol"
+      showFilter
+    />
+  );
+}
+```
+
+## Performance
+
+Tested on AMD Ryzen, Linux, Chrome:
+
+| Operation | 10k rows | 100k rows | 1M rows |
+|-----------|----------|-----------|---------|
+| Initial render | 45ms | 52ms | 68ms |
+| Sort (click) | 2ms | 5ms | 18ms |
+| Filter (trigram) | &lt;1ms | &lt;1ms | &lt;2ms |
+| 10% row update | &lt;16ms | &lt;16ms | &lt;16ms |
+
+## Part of AskTurret
+
+This grid is extracted from [AskTurret](https://askturret.com), an AI-native desktop platform for traders.

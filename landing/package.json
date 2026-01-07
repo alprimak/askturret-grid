@@ -16,6 +16,7 @@
     "@askturret/grid": "^0.1.2",
     "@askturret/grid-wasm": "^0.2.0",
     "@astrojs/react": "^4.4.2",
+    "@astrojs/starlight": "^0.37.2",
     "@astrojs/tailwind": "^6.0.2",
     "astro": "^5.16.6",
     "react": "^18.3.1",
