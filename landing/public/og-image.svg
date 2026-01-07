@@ -1,0 +1,61 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0a0a0f"/>
+
+  <!-- Subtle grid pattern -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a1a2e" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)" opacity="0.5"/>
+
+  <!-- Gradient overlay -->
+  <rect width="1200" height="630" fill="url(#gradient)" opacity="0.3"/>
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="1200" y2="630">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#0a0a0f" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Logo icon -->
+  <g transform="translate(520, 120)">
+    <rect width="160" height="160" rx="32" fill="#22c55e"/>
+    <path d="M68 32L124 128H100L68 72L36 128H12L68 32Z" fill="#0a0a0b"/>
+    <rect x="128" y="88" width="20" height="36" rx="4" fill="#0a0a0b" opacity="0.7"/>
+  </g>
+
+  <!-- Title -->
+  <text x="600" y="340" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="48" font-weight="700" fill="#f4f4f5">
+    @askturret/grid
+  </text>
+
+  <!-- Tagline -->
+  <text x="600" y="400" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="32" fill="#a1a1aa">
+    1 million rows. 60 FPS. Your architecture.
+  </text>
+
+  <!-- Three engine pills -->
+  <g transform="translate(330, 450)">
+    <!-- Worker -->
+    <rect x="0" y="0" width="150" height="50" rx="25" fill="#22c55e" opacity="0.2"/>
+    <rect x="0" y="0" width="150" height="50" rx="25" stroke="#22c55e" stroke-width="2" fill="none"/>
+    <text x="75" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#22c55e">Worker</text>
+
+    <!-- WASM -->
+    <rect x="180" y="0" width="150" height="50" rx="25" fill="#3b82f6" opacity="0.2"/>
+    <rect x="180" y="0" width="150" height="50" rx="25" stroke="#3b82f6" stroke-width="2" fill="none"/>
+    <text x="255" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#3b82f6">WASM</text>
+
+    <!-- JS -->
+    <rect x="360" y="0" width="150" height="50" rx="25" fill="#f59e0b" opacity="0.2"/>
+    <rect x="360" y="0" width="150" height="50" rx="25" stroke="#f59e0b" stroke-width="2" fill="none"/>
+    <text x="435" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#f59e0b">Pure JS</text>
+  </g>
+
+  <!-- URL -->
+  <text x="600" y="580" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" fill="#71717a">
+    grid.askturret.com
+  </text>
+</svg>
