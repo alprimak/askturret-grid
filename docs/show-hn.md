@@ -1,58 +1,77 @@
-# Show HN: I built a data grid that replaces server-side row models with Rust + WASM
+# Show HN: @askturret/grid - Pick your architecture: Worker, WASM, or JS
 
-**Title:** Show HN: @askturret/grid – Server-side grid performance without the server (Rust + WASM)
+**Title:** Show HN: React data grid with 3 engines - Worker for streaming, WASM for filtering, JS for simplicity
 
 ---
 
 I've been building trading software for 8 years, and the data grid problem has always annoyed me.
 
-You have two options:
+The typical options:
 1. **Client-side grids** - Fast until you hit 10k rows, then JavaScript dies
-2. **Server-side grids** (AG Grid's "infinite row model") - Handles scale, but adds network latency and backend complexity
+2. **Server-side grids** - Handles scale, but adds network latency and backend complexity
 
-We chose a third path: compile Rust to WebAssembly and run it in the browser.
+But here's the thing: different workloads need different solutions.
 
-The result: sorting 100k rows in 12ms, filtering in 8ms, maintaining 60fps with 10% of rows updating every 250ms. No backend required.
+Real-time streaming (trading, IoT) needs non-blocking updates.
+Analytics dashboards need fast filtering on millions of rows.
+Admin panels just need something simple that works.
 
-**Key architectural decisions:**
-- WASM core handles sorting, filtering, and aggregation
-- React layer only renders visible rows (virtualization)
-- Adaptive flash highlighting auto-disables when FPS drops below 55
-- Zero-copy data sharing between JS and WASM where possible
+So we built a grid with **three interchangeable engines**, same API:
+
+| Engine | Best for | How it works |
+|--------|----------|--------------|
+| **Worker** | Real-time streaming | Web Worker batches updates off main thread |
+| **WASM** | Heavy filtering | Rust + trigram indexing for instant search |
+| **JS** | Simplicity | Zero deps, just works |
+
+**Pick what fits your workload:**
+
+```tsx
+import { useGridStore } from '@askturret/grid';
+
+const { data, updateRows } = useGridStore({
+  storeType: 'worker', // or 'wasm' or 'js'
+  schema: [...],
+});
+```
+
+The Worker engine is particularly interesting - updates happen completely off the main thread. Your UI stays at 60fps even with thousands of updates per second.
 
 **Trading-specific features:**
 - Green/red flash highlighting on value changes
-- Built-in formatters for prices, P&L, quantities
-- Multi-window sync via BroadcastChannel
-- OrderBook and TimeSales components (coming soon)
+- Built-in OrderBook, TimeSales, PositionLadder components
+- Adaptive performance (auto-disables effects when FPS drops)
 
-This is extracted from AskTurret, an AI trading assistant I'm building. Figured the grid component could stand on its own.
+This is extracted from AskTurret, an AI trading assistant I'm building. MIT licensed.
 
-MIT licensed. Would love feedback from anyone who's dealt with high-frequency data visualization.
-
-Live demo: https://grid.askturret.com
-GitHub: https://github.com/askturret/grid
-Benchmark page: https://grid.askturret.com/benchmarks
+Live demo: https://grid.askturret.com/demo
+Benchmarks (run your own tests): https://grid.askturret.com/benchmarks
+GitHub: https://github.com/alprimak/askturret-grid
 
 ---
 
 ## Alternative shorter version (~150 words):
 
-**Title:** Show HN: Rust + WASM data grid – 100k rows at 60fps, no server needed
+**Title:** Show HN: React grid with 3 engines - pick Worker, WASM, or JS based on your workload
 
-We replaced AG Grid's server-side row model with client-side WASM.
+Most grids force you into one architecture. But workloads differ.
 
-The problem: JavaScript grids choke at 10k rows. Server-side grids add latency and infrastructure. For trading apps with real-time updates, neither option works well.
+We built a grid with three interchangeable engines:
+- **Worker**: Off-thread updates for real-time streaming (trading, IoT)
+- **WASM**: Trigram-indexed filtering for analytics on 1M+ rows
+- **JS**: Zero-dependency simplicity for admin panels
 
-Our solution: Rust compiled to WebAssembly handling sort/filter/aggregation, React handling virtualized rendering.
+Same API. Pick what fits:
 
-Results:
-- 100k row sort: 12ms (vs 200ms+ server round-trip)
-- 60fps maintained during 10% row updates every 250ms
-- Adaptive flash highlights (auto-disable when FPS drops)
-- 45kb bundle (vs 200kb+ AG Grid)
+```tsx
+useGridStore({ storeType: 'worker' }) // Non-blocking updates
+useGridStore({ storeType: 'wasm' })   // Fast filtering
+useGridStore({ storeType: 'js' })     // Just works
+```
 
-Built this for AskTurret (AI trading assistant), extracted it as a standalone MIT library. Looking for feedback from anyone handling high-frequency data in the browser.
+Built for trading with flash highlighting, OrderBook, TimeSales components. The Worker engine keeps UI at 60fps even with 1000+ updates/second.
 
-Demo: https://grid.askturret.com
-GitHub: https://github.com/askturret/grid
+MIT licensed. Run your own benchmarks at grid.askturret.com/benchmarks
+
+Demo: https://grid.askturret.com/demo
+GitHub: https://github.com/alprimak/askturret-grid

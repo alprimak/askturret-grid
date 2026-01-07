@@ -1,7 +1,7 @@
-# Blog Post: How We Replaced Server-Side Grids with Rust + WebAssembly
+# Blog Post: Why We Built a React Grid with 3 Interchangeable Engines
 
 **Target length:** 2000-2500 words
-**Target audience:** Frontend developers, performance-focused engineers, Rust enthusiasts
+**Target audience:** Frontend developers, performance-focused engineers, React developers
 **Publishing:** dev.to, Medium, company blog
 
 ---
@@ -10,240 +10,240 @@
 
 ### 1. The Problem (300 words)
 
-**Hook:** "We needed to display 100k trading positions with real-time updates. Every existing solution failed us."
+**Hook:** "Most data grids force you into one architecture. But real-time trading needs different things than analytics dashboards."
 
-- Context: Building trading software, typical dataset is 50k-500k rows
-- Real-time requirement: 10-20% of rows update every 250ms
-- UX requirement: sorting/filtering must feel instant (<100ms)
+- Context: Building trading software, different use cases need different solutions
+- The spectrum of workloads:
+  - Real-time streaming: 1000+ updates/second, UI must stay responsive
+  - Analytics: Filtering/searching millions of rows instantly
+  - Admin panels: Just need something simple that works
 
-**The two traditional approaches and why they fail:**
+**The two traditional approaches and why they're limiting:**
 
 1. **Client-side JavaScript grids**
-   - Works great until ~5k rows
-   - 10k rows: sorting takes 500ms+
-   - 100k rows: browser locks up
-   - Example: AG Grid community edition, React Table
+   - Works great for simple cases
+   - Struggles with high-frequency updates (blocks main thread)
+   - Slow filtering on large datasets
 
 2. **Server-side row models**
-   - AG Grid Enterprise, Handsontable
-   - Offload sort/filter to backend
-   - Problems:
-     - Network latency (50-200ms per operation)
-     - Backend infrastructure cost
-     - Complexity (pagination, caching, invalidation)
-     - Doesn't solve real-time updates
+   - Offloads work but adds network latency
+   - Doesn't solve real-time update problem
+   - Infrastructure complexity
 
-**The insight:** What if we could get server-side performance without the server?
+**The insight:** What if you could pick the right engine for your specific workload?
 
 ---
 
-### 2. Why WebAssembly? (400 words)
+### 2. The Three-Engine Architecture (400 words)
 
-**Why not just optimize JavaScript?**
-- JS engines are incredible, but fundamentally limited for data processing
-- Explain: JIT compilation, garbage collection pauses, lack of true integers
-- Real numbers: V8 sorts 100k objects in ~180ms. Rust does it in ~8ms.
+**Why three engines instead of one "best" solution?**
 
-**Why Rust specifically?**
-- Zero-cost abstractions
-- No garbage collector (predictable latency)
-- Mature WASM toolchain (wasm-bindgen, wasm-pack)
-- Memory safety without runtime overhead
+Different workloads have fundamentally different bottlenecks:
 
-**The WASM bridge overhead myth**
-- Common concern: "Isn't crossing the JS/WASM boundary slow?"
-- Reality: For bulk operations, the savings dwarf the overhead
-- Show benchmark: 100k row sort
-  - Pure JS: 180ms
-  - WASM (including serialization): 15ms
-  - The 12x speedup more than covers the bridge cost
+| Workload | Bottleneck | Solution |
+|----------|------------|----------|
+| Real-time streaming | Main thread blocking | Worker (off-thread) |
+| Heavy filtering | Search speed | WASM (trigram index) |
+| Simple use cases | Complexity | JS (zero deps) |
 
-**When WASM doesn't help**
-- Small datasets (<1k rows): JS is fine, WASM overhead not worth it
-- Simple operations: Array.filter on 100 items doesn't need WASM
-- Our approach: Adaptive - only use WASM when dataset exceeds threshold
+**Engine 1: WorkerGridStore**
+- All data lives in a Web Worker
+- Updates are batched and processed off main thread
+- Main thread only receives what it needs to render
+- Result: 60fps maintained even with 1000+ updates/second
+
+```tsx
+useGridStore({ storeType: 'worker' })
+```
+
+**Engine 2: WasmGridStore**
+- Rust compiled to WebAssembly
+- Trigram indexing for instant text search
+- Handles 1M+ rows without breaking a sweat
+- Result: <2ms filter time on large datasets
+
+```tsx
+useGridStore({ storeType: 'wasm' })
+```
+
+**Engine 3: JsGridStore**
+- Pure JavaScript, zero dependencies
+- No WASM loading, no Worker setup
+- Perfect for small datasets or SSR
+- Result: Simplicity when you don't need complexity
+
+```tsx
+useGridStore({ storeType: 'js' })
+```
+
+**The key: Same API, different implementations**
 
 ---
 
-### 3. Architecture Deep Dive (500 words)
+### 3. Deep Dive: The Worker Engine (500 words)
 
-**Package structure:**
+**Why Workers are perfect for real-time data**
+
+The fundamental problem with JavaScript grids:
 ```
-@askturret/grid-core   (Rust → WASM)
-@askturret/grid-react  (React components)
-```
-
-**The Rust core handles:**
-
-1. **Sorting**
-   - Rust's `sort_unstable` is incredibly fast
-   - Key insight: Sort indices, not actual data
-   - Code snippet: Parallel sorting with rayon
-
-2. **Filtering**
-   - SIMD-accelerated string matching where available
-   - Compiled regex vs JS regex performance
-
-3. **Aggregations**
-   - VWAP, TWAP calculations
-   - Running totals with streaming updates
-   - Why this matters for trading: recalculating 100k positions
-
-4. **Tick buffering and deduplication**
-   - Real-time feeds send duplicate/stale data
-   - Ring buffer with timestamp-based dedup
-   - Why this needs to be fast: 1000+ updates/second
-
-**Data transfer between JS and WASM:**
-
-```
-Option 1: JSON serialization (slow)
-Option 2: SharedArrayBuffer (fast, but compatibility issues)
-Option 3: Typed arrays + manual serialization (our approach)
+User clicks → Data updates → JavaScript processes → UI updates
+                            ↑
+                     Main thread blocked
+                     User sees stutter
 ```
 
-Explain the tradeoff and why we chose Option 3.
+With WorkerGridStore:
+```
+User clicks → Updates queued → Worker processes (off-thread) → UI updates
+                               ↑
+                        Main thread free
+                        UI stays smooth
+```
 
-**React layer handles:**
+**Implementation details:**
+
+1. **Message-based communication**
+   - Updates sent to worker via postMessage
+   - Worker batches and processes
+   - Only visible rows sent back to main thread
+
+2. **Viewport-aware rendering**
+   - Worker knows what rows are visible
+   - Only sends data that will actually render
+   - Huge bandwidth savings
+
+3. **Batch timing**
+   - Updates batched every 16ms (one frame)
+   - Configurable for different use cases
+   - Automatic coalescing of duplicate updates
+
+**When to use Worker:**
+- Trading terminals with live price feeds
+- IoT dashboards with sensor data
+- Any high-frequency update scenario
+
+**When NOT to use Worker:**
+- Need synchronous operations
+- Small datasets where overhead isn't worth it
+- SSR (Workers don't exist server-side)
+
+---
+
+### 4. Deep Dive: The WASM Engine (400 words)
+
+**Why WASM for filtering?**
+
+The trigram indexing approach:
+- Break every string into 3-character sequences
+- Build an inverted index
+- Search becomes index lookup instead of full scan
+
+Example:
+```
+"APPLE" → ["APP", "PPL", "PLE"]
+"GOOGLE" → ["GOO", "OOG", "OGL", "GLE"]
+
+Search "PLE" → Instantly returns ["APPLE"]
+```
+
+**Rust implementation benefits:**
+- Predictable performance (no GC pauses)
+- SIMD acceleration where available
+- Memory efficiency
+
+**Benchmark results:**
+| Dataset | JS Filter | WASM Filter |
+|---------|-----------|-------------|
+| 100k rows | 45ms | 2ms |
+| 500k rows | 180ms | 8ms |
+| 1M rows | 400ms | 15ms |
+
+**When to use WASM:**
+- Large datasets (100k+ rows)
+- Complex search/filter requirements
+- Analytics dashboards
+
+**When NOT to use WASM:**
+- Small datasets (overhead not worth it)
+- Bundle size is critical (adds ~50kb)
+- Need SSR (WASM requires browser)
+
+---
+
+### 5. The React Layer (300 words)
+
+**Shared across all engines:**
 
 1. **Virtualization**
-   - Only render visible rows (~50 at a time)
-   - Using @tanstack/react-virtual
-   - Why not react-window: flexibility for trading UI
+   - Only renders visible rows
+   - Auto-enables at 100+ rows
+   - Smooth scrolling at any dataset size
 
 2. **Flash highlighting**
-   - Green flash on value increase, red on decrease
-   - Challenge: Tracking previous values for 100k cells
-   - Solution: Map-based tracking with ref (not state)
+   - Green flash on value increase
+   - Red flash on value decrease
+   - Ref-based tracking (not state)
 
 3. **Adaptive performance**
-   - Monitor FPS with requestAnimationFrame
-   - Auto-disable flash when FPS < 55 for 2 seconds
-   - Re-enable when FPS > 58 for 3 seconds (hysteresis)
+   - Monitors FPS via requestAnimationFrame
+   - Auto-disables effects when FPS drops below 55
+   - Re-enables when performance recovers
 
----
-
-### 4. Benchmark Methodology (300 words)
-
-**What we measure:**
-- Initial render time
-- Sort latency (click to complete)
-- Filter latency (keystroke to complete)
-- Update throughput (rows/second at 60fps)
-- Memory usage
-
-**Test environment:**
-- Hardware: M1 MacBook Pro, 16GB RAM
-- Browser: Chrome 120, Firefox 121, Safari 17
-- Methodology: 10 runs, discard outliers, report median
-
-**Results table:**
-
-| Metric | 10k rows | 100k rows | 1M rows |
-|--------|----------|-----------|---------|
-| Initial render | 45ms | 52ms | 68ms |
-| Sort | 2ms | 12ms | 95ms |
-| Filter | 1ms | 8ms | 72ms |
-| Max update rate | 60fps | 60fps | 45fps |
-
-**Comparison with alternatives:**
-- AG Grid Community: [numbers]
-- AG Grid Enterprise (server-side): [network-dependent]
-- React Table: [numbers]
-- Handsontable: [numbers]
-
-**Honesty section:** When our approach is slower
-- Small datasets: WASM overhead not worth it
-- Complex cell renderers: React is the bottleneck, not data processing
-
----
-
-### 5. Implementation Details (400 words)
-
-**Code walkthrough: The sort function**
-
-```rust
-#[wasm_bindgen]
-pub fn sort_indices(data: &[u8], field_offset: usize, ascending: bool) -> Vec<u32> {
-    // Explain the implementation
-}
-```
-
-**Code walkthrough: Flash highlighting**
+**The DataGrid component doesn't care which engine you use:**
 
 ```tsx
-// Explain ref-based tracking vs state-based
-// Show the Map structure and cleanup logic
+const { data } = useGridStore({ storeType: 'worker' });
+
+return <DataGrid data={data} columns={columns} />;
 ```
-
-**Code walkthrough: Adaptive FPS monitoring**
-
-```tsx
-// Show the useAdaptiveFlash hook
-// Explain hysteresis logic
-```
-
-**Memory management considerations:**
-- WASM linear memory growth
-- When to release Rust-side allocations
-- Avoiding memory leaks in long-running trading apps
 
 ---
 
-### 6. Lessons Learned (200 words)
+### 6. Choosing the Right Engine (200 words)
 
-**What worked:**
-- Starting with pure JS, then profiling to find bottlenecks
-- Only moving proven-slow operations to WASM
-- Keeping React layer simple (it's just a view)
+**Decision flowchart:**
 
-**What didn't work:**
-- Initial attempt at SharedArrayBuffer (Safari support)
-- Over-engineering the WASM interface
-- Trying to make WASM handle rendering logic
+```
+High-frequency updates (>100/second)?
+├─ Yes → Worker
+└─ No
+   └─ Large dataset (>100k rows)?
+      ├─ Yes → WASM
+      └─ No → JS
+```
 
-**Surprising findings:**
-- String sorting in WASM is only 2x faster than JS (not 10x)
-- The biggest win was numeric sorting and aggregations
-- Memory transfer is the bottleneck, not computation
+**The beautiful part:** You can switch engines without changing component code.
 
 ---
 
 ### 7. Conclusion (200 words)
 
-**When to use this approach:**
-- Datasets > 10k rows with frequent updates
-- Performance-critical applications (trading, monitoring, analytics)
-- When you can't or don't want server-side infrastructure
-
-**When to stick with traditional grids:**
-- Small datasets
-- Infrequent updates
-- Team without Rust experience (maintenance cost)
+**Key takeaways:**
+- One-size-fits-all doesn't work for data grids
+- Match your engine to your workload
+- Same API means easy experimentation
 
 **Call to action:**
-- Try the live demo
-- Star the repo
-- Check out AskTurret for the full trading platform
+- Try the live demo: https://grid.askturret.com/demo
+- Run benchmarks on your machine: https://grid.askturret.com/benchmarks
+- Star the repo: https://github.com/alprimak/askturret-grid
 
 ---
 
 ## Supporting Materials
 
-**Code samples for the post:**
-- [ ] Rust sorting function (simplified)
-- [ ] Flash tracking hook
-- [ ] Adaptive FPS hook
-- [ ] Benchmark runner script
+**Code samples:**
+- [ ] useGridStore hook usage
+- [ ] Engine switching example
+- [ ] Flash highlighting configuration
 
 **Screenshots/GIFs:**
-- [ ] 100k rows scrolling smoothly (GIF)
-- [ ] Flash highlighting demo (GIF)
-- [ ] FPS monitor during stress test
-- [ ] Benchmark results chart
+- [ ] Worker engine maintaining 60fps during updates
+- [ ] WASM filtering 1M rows
+- [ ] Engine comparison benchmark
 
 **Links:**
-- GitHub repo
-- Live demo
-- Benchmark page
-- AskTurret main site
+- GitHub: https://github.com/alprimak/askturret-grid
+- Demo: https://grid.askturret.com/demo
+- Benchmarks: https://grid.askturret.com/benchmarks
+- Docs: https://alprimak.github.io/askturret-grid
