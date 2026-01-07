@@ -175,8 +175,8 @@ const SCHEMA: ColumnSchema[] = [
   { name: 'volume', type: 'number' },
 ];
 
-const ROW_COUNTS = [10000, 50000, 100000];
-const ROW_LABELS = ['10k', '50k', '100k'];
+const ROW_COUNTS = [10000, 50000, 100000, 500000, 1000000];
+const ROW_LABELS = ['10k', '50k', '100k', '500k', '1M'];
 const FRAME_BUDGET_MS = 16;
 
 export function BenchmarkRunner() {
