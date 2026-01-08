@@ -89,6 +89,29 @@ const columns: ColumnDef<TestRow>[] = [
   },
 ];
 
+/**
+ * Calculate percentile using linear interpolation
+ * More accurate than simple index lookup, especially for small samples
+ */
+function percentile(sortedValues: number[], p: number): number {
+  if (sortedValues.length === 0) return 0;
+  if (sortedValues.length === 1) return sortedValues[0];
+
+  // Use the "exclusive" percentile method (R-6 in R terminology)
+  // which provides better estimates for small samples
+  const n = sortedValues.length;
+  const rank = (p / 100) * (n + 1) - 1; // 0-indexed rank
+
+  if (rank <= 0) return sortedValues[0];
+  if (rank >= n - 1) return sortedValues[n - 1];
+
+  const lowerIndex = Math.floor(rank);
+  const upperIndex = Math.ceil(rank);
+  const fraction = rank - lowerIndex;
+
+  return sortedValues[lowerIndex] + fraction * (sortedValues[upperIndex] - sortedValues[lowerIndex]);
+}
+
 function measureRender(
   _name: string,
   component: React.ReactElement,
@@ -109,7 +132,7 @@ function measureRender(
     avgMs: times.reduce((a, b) => a + b, 0) / iterations,
     minMs: times[0],
     maxMs: times[times.length - 1],
-    p95Ms: times[Math.floor(iterations * 0.95)],
+    p95Ms: percentile(times, 95),
   };
 }
 
@@ -176,7 +199,7 @@ describe('DataGrid Performance Benchmarks', () => {
 
     updateTimes.sort((a, b) => a - b);
     const avgUpdate = updateTimes.reduce((a, b) => a + b, 0) / updateTimes.length;
-    const p95Update = updateTimes[Math.floor(updateTimes.length * 0.95)];
+    const p95Update = percentile(updateTimes, 95);
 
     console.log(`Update 200 rows: avg=${avgUpdate.toFixed(2)}ms, p95=${p95Update.toFixed(2)}ms`);
     expect(p95Update).toBeLessThan(200); // CI runners are slower, local should be <50ms

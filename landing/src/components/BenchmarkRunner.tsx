@@ -59,6 +59,8 @@ interface BenchmarkResults {
   avgLatencyJs: number;
   avgLatencyWasm: number | null;
   avgLatencyWorker: number | null;
+  // Worker-specific: actual processing time in worker thread
+  avgWorkerProcessingTime: number | null;
   totalBlockJs: number;
   totalBlockWasm: number | null;
   totalBlockWorker: number | null;
@@ -68,7 +70,9 @@ interface BenchmarkResults {
   loadJs: number;
   loadWasm: number | null;
   loadWorker: number | null;
-  winner: 'js' | 'wasm' | 'worker';
+  // Separate winners for different metrics
+  winnerLatency: 'js' | 'wasm' | 'worker';
+  winnerThroughput: 'js' | 'wasm' | 'worker';
 }
 
 interface TestRow {
@@ -317,6 +321,7 @@ export function BenchmarkRunner() {
       let avgLatencyWorker: number | null = null;
       let totalBlockWorker: number | null = null;
       let frameBudgetWorker: number | null = null;
+      let avgWorkerProcessingTime: number | null = null;
 
       setProgress('Running Worker benchmark...');
       await new Promise((r) => setTimeout(r, 10));
@@ -338,18 +343,40 @@ export function BenchmarkRunner() {
           workerStore.setFilter('AAPL');
         }
 
+        // Measure main thread blocking time (time to queue updates)
         const workerLatencies: number[] = [];
+        const workerStartTime = performance.now();
         for (let i = 0; i < config.frames; i++) {
           const frameStart = performance.now();
           workerStore.queueUpdates(updateBatches[i]);
           workerLatencies.push(performance.now() - frameStart);
         }
 
-        await new Promise((r) => setTimeout(r, 200));
+        // Wait for worker to finish processing all batches
+        // Poll getStats() until pendingUpdates is 0
+        let pollAttempts = 0;
+        const maxPollAttempts = 100; // Max 5 seconds (100 * 50ms)
+        while (pollAttempts < maxPollAttempts) {
+          await new Promise((r) => setTimeout(r, 50));
+          const stats = await workerStore.getStats();
+          if (stats.pendingUpdates === 0) {
+            break;
+          }
+          pollAttempts++;
+          if (pollAttempts % 10 === 0) {
+            setProgress(`Worker processing... ${stats.pendingUpdates} updates pending`);
+          }
+        }
+        const workerEndTime = performance.now();
 
+        // Main thread blocking time (what Worker is optimized for)
         totalBlockWorker = workerLatencies.reduce((a, b) => a + b, 0);
         avgLatencyWorker = totalBlockWorker / config.frames;
         frameBudgetWorker = (avgLatencyWorker / FRAME_BUDGET_MS) * 100;
+
+        // Actual end-to-end processing time (for throughput comparison)
+        const totalWorkerTime = workerEndTime - workerStartTime;
+        avgWorkerProcessingTime = totalWorkerTime / config.frames;
 
         if (config.filterDuring) {
           workerStore.clearFilter();
@@ -358,19 +385,30 @@ export function BenchmarkRunner() {
         console.warn('Worker benchmark failed:', e);
       }
 
-      // Determine winner
-      const times = [
+      // Determine winners for different metrics
+      // Latency winner: lowest main thread blocking (Worker's strength)
+      const latencyTimes = [
         { name: 'js' as const, time: avgLatencyJs },
         { name: 'wasm' as const, time: avgLatencyWasm ?? Infinity },
         { name: 'worker' as const, time: avgLatencyWorker ?? Infinity },
       ];
-      const winner = times.reduce((a, b) => (a.time < b.time ? a : b)).name;
+      const winnerLatency = latencyTimes.reduce((a, b) => (a.time < b.time ? a : b)).name;
+
+      // Throughput winner: lowest actual processing time
+      // For Worker, use actual processing time, not queue time
+      const throughputTimes = [
+        { name: 'js' as const, time: avgLatencyJs },
+        { name: 'wasm' as const, time: avgLatencyWasm ?? Infinity },
+        { name: 'worker' as const, time: avgWorkerProcessingTime ?? Infinity },
+      ];
+      const winnerThroughput = throughputTimes.reduce((a, b) => (a.time < b.time ? a : b)).name;
 
       setResults({
         pattern,
         avgLatencyJs,
         avgLatencyWasm,
         avgLatencyWorker,
+        avgWorkerProcessingTime,
         totalBlockJs,
         totalBlockWasm,
         totalBlockWorker,
@@ -380,7 +418,8 @@ export function BenchmarkRunner() {
         loadJs,
         loadWasm,
         loadWorker,
-        winner,
+        winnerLatency,
+        winnerThroughput,
       });
       setProgress('');
     } catch (e) {
@@ -430,12 +469,19 @@ export function BenchmarkRunner() {
     return 'WorkerGridStore';
   };
 
-  const getRecommendation = (winner: 'js' | 'wasm' | 'worker', pattern: BenchmarkPattern) => {
-    if (winner === 'worker') {
-      return 'Use WorkerGridStore (default) for best UI responsiveness';
+  const getRecommendation = (
+    winnerLatency: 'js' | 'wasm' | 'worker',
+    winnerThroughput: 'js' | 'wasm' | 'worker',
+    pattern: BenchmarkPattern
+  ) => {
+    if (winnerLatency === 'worker' && winnerThroughput !== 'worker') {
+      return `Use WorkerGridStore for smooth UI (lowest main-thread blocking). ${getWinnerLabel(winnerThroughput)} has best raw throughput.`;
     }
-    if (winner === 'wasm') {
-      return 'Consider WasmGridStore for heavy filtering workloads';
+    if (winnerLatency === 'worker') {
+      return 'Use WorkerGridStore for best overall performance (lowest blocking + competitive throughput)';
+    }
+    if (winnerThroughput === 'wasm') {
+      return 'Consider WasmGridStore for maximum throughput on heavy filtering workloads';
     }
     return 'JavaScript baseline is sufficient for this workload';
   };
@@ -531,55 +577,66 @@ export function BenchmarkRunner() {
           </p>
 
           <div className="results-grid three-col">
-            {/* Per-Frame Latency */}
+            {/* Per-Frame Latency (Main Thread Blocking) */}
             <div className="result-card highlight">
               <div className="result-header">
-                <span className="result-title">Per-Frame Latency</span>
+                <span className="result-title">Main Thread Blocking</span>
               </div>
               <div className="result-bars">
-                <div className="bar-row">
-                  <span className="bar-label">JavaScript</span>
-                  <div className="bar-container">
-                    <div className={`bar js ${results.winner === 'js' ? 'winner' : ''}`} style={{ width: '100%' }} />
-                  </div>
-                  <span className={`bar-value ${results.winner === 'js' ? 'success' : ''}`}>
-                    {formatTime(results.avgLatencyJs)}
-                  </span>
-                </div>
-                {results.avgLatencyWasm !== null && (
-                  <div className="bar-row">
-                    <span className="bar-label">WASM</span>
-                    <div className="bar-container">
-                      <div
-                        className={`bar wasm ${results.winner === 'wasm' ? 'winner' : ''}`}
-                        style={{
-                          width: `${Math.min(100, Math.max(5, (results.avgLatencyWasm / Math.max(results.avgLatencyJs, results.avgLatencyWasm)) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className={`bar-value ${results.winner === 'wasm' ? 'success' : ''}`}>
-                      {formatTime(results.avgLatencyWasm)}
-                    </span>
-                  </div>
-                )}
-                {results.avgLatencyWorker !== null && (
-                  <div className="bar-row">
-                    <span className="bar-label">Worker</span>
-                    <div className="bar-container">
-                      <div
-                        className={`bar worker ${results.winner === 'worker' ? 'winner' : ''}`}
-                        style={{
-                          width: `${Math.min(100, Math.max(2, (results.avgLatencyWorker / results.avgLatencyJs) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className={`bar-value ${results.winner === 'worker' ? 'success' : ''}`}>
-                      {formatTime(results.avgLatencyWorker)}
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  // Calculate max for consistent bar scaling
+                  const maxLatency = Math.max(
+                    results.avgLatencyJs,
+                    results.avgLatencyWasm ?? 0,
+                    results.avgLatencyWorker ?? 0
+                  );
+                  return (
+                    <>
+                      <div className="bar-row">
+                        <span className="bar-label">JavaScript</span>
+                        <div className="bar-container">
+                          <div
+                            className={`bar js ${results.winnerLatency === 'js' ? 'winner' : ''}`}
+                            style={{ width: `${Math.max(5, (results.avgLatencyJs / maxLatency) * 100)}%` }}
+                          />
+                        </div>
+                        <span className={`bar-value ${results.winnerLatency === 'js' ? 'success' : ''}`}>
+                          {formatTime(results.avgLatencyJs)}
+                        </span>
+                      </div>
+                      {results.avgLatencyWasm !== null && (
+                        <div className="bar-row">
+                          <span className="bar-label">WASM</span>
+                          <div className="bar-container">
+                            <div
+                              className={`bar wasm ${results.winnerLatency === 'wasm' ? 'winner' : ''}`}
+                              style={{ width: `${Math.max(5, (results.avgLatencyWasm / maxLatency) * 100)}%` }}
+                            />
+                          </div>
+                          <span className={`bar-value ${results.winnerLatency === 'wasm' ? 'success' : ''}`}>
+                            {formatTime(results.avgLatencyWasm)}
+                          </span>
+                        </div>
+                      )}
+                      {results.avgLatencyWorker !== null && (
+                        <div className="bar-row">
+                          <span className="bar-label">Worker</span>
+                          <div className="bar-container">
+                            <div
+                              className={`bar worker ${results.winnerLatency === 'worker' ? 'winner' : ''}`}
+                              style={{ width: `${Math.max(2, (results.avgLatencyWorker / maxLatency) * 100)}%` }}
+                            />
+                          </div>
+                          <span className={`bar-value ${results.winnerLatency === 'worker' ? 'success' : ''}`}>
+                            {formatTime(results.avgLatencyWorker)}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
-              <div className="index-note">Time main thread blocks per frame</div>
+              <div className="index-note">Lower = smoother UI (Worker offloads work)</div>
             </div>
 
             {/* Frame Budget */}
@@ -632,64 +689,81 @@ export function BenchmarkRunner() {
               <div className="index-note">&lt;50% = smooth 60fps</div>
             </div>
 
-            {/* Total Blocking */}
+            {/* Actual Processing Time (Throughput) */}
             <div className="result-card">
               <div className="result-header">
-                <span className="result-title">Total Main Thread Block</span>
+                <span className="result-title">Actual Processing Time</span>
               </div>
               <div className="result-bars">
-                <div className="bar-row">
-                  <span className="bar-label">JavaScript</span>
-                  <div className="bar-container">
-                    <div className="bar js" style={{ width: '100%' }} />
-                  </div>
-                  <span className="bar-value">{formatTime(results.totalBlockJs)}</span>
-                </div>
-                {results.totalBlockWasm !== null && (
-                  <div className="bar-row">
-                    <span className="bar-label">WASM</span>
-                    <div className="bar-container">
-                      <div
-                        className="bar wasm"
-                        style={{
-                          width: `${Math.min(100, Math.max(5, (results.totalBlockWasm / Math.max(results.totalBlockJs, results.totalBlockWasm)) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="bar-value">{formatTime(results.totalBlockWasm)}</span>
-                  </div>
-                )}
-                {results.totalBlockWorker !== null && (
-                  <div className="bar-row">
-                    <span className="bar-label">Worker</span>
-                    <div className="bar-container">
-                      <div
-                        className="bar worker faster"
-                        style={{
-                          width: `${Math.min(100, Math.max(2, (results.totalBlockWorker / results.totalBlockJs) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="bar-value success">{formatTime(results.totalBlockWorker)}</span>
-                  </div>
-                )}
+                {(() => {
+                  // For throughput, compare actual processing times
+                  // Worker uses end-to-end time, not queue time
+                  const jsThroughput = results.avgLatencyJs;
+                  const wasmThroughput = results.avgLatencyWasm;
+                  const workerThroughput = results.avgWorkerProcessingTime;
+                  const maxThroughput = Math.max(
+                    jsThroughput,
+                    wasmThroughput ?? 0,
+                    workerThroughput ?? 0
+                  );
+                  return (
+                    <>
+                      <div className="bar-row">
+                        <span className="bar-label">JavaScript</span>
+                        <div className="bar-container">
+                          <div
+                            className={`bar js ${results.winnerThroughput === 'js' ? 'winner' : ''}`}
+                            style={{ width: `${Math.max(5, (jsThroughput / maxThroughput) * 100)}%` }}
+                          />
+                        </div>
+                        <span className={`bar-value ${results.winnerThroughput === 'js' ? 'success' : ''}`}>
+                          {formatTime(jsThroughput)}
+                        </span>
+                      </div>
+                      {wasmThroughput !== null && (
+                        <div className="bar-row">
+                          <span className="bar-label">WASM</span>
+                          <div className="bar-container">
+                            <div
+                              className={`bar wasm ${results.winnerThroughput === 'wasm' ? 'winner' : ''}`}
+                              style={{ width: `${Math.max(5, (wasmThroughput / maxThroughput) * 100)}%` }}
+                            />
+                          </div>
+                          <span className={`bar-value ${results.winnerThroughput === 'wasm' ? 'success' : ''}`}>
+                            {formatTime(wasmThroughput)}
+                          </span>
+                        </div>
+                      )}
+                      {workerThroughput !== null && (
+                        <div className="bar-row">
+                          <span className="bar-label">Worker</span>
+                          <div className="bar-container">
+                            <div
+                              className={`bar worker ${results.winnerThroughput === 'worker' ? 'winner' : ''}`}
+                              style={{ width: `${Math.max(5, (workerThroughput / maxThroughput) * 100)}%` }}
+                            />
+                          </div>
+                          <span className={`bar-value ${results.winnerThroughput === 'worker' ? 'success' : ''}`}>
+                            {formatTime(workerThroughput)}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
-              <div className="index-note">Over full simulation</div>
+              <div className="index-note">End-to-end time per frame (lower = faster)</div>
             </div>
           </div>
 
           <div className="results-summary">
             <div className="summary-item highlight">
-              <span className="summary-label">Winner</span>
-              <span className="summary-value success">{getWinnerLabel(results.winner)}</span>
+              <span className="summary-label">UI Smoothness</span>
+              <span className="summary-value success">{getWinnerLabel(results.winnerLatency)}</span>
             </div>
-            <div className="summary-item">
-              <span className="summary-label">Worker Speedup</span>
-              <span className="summary-value">
-                {results.avgLatencyWorker !== null
-                  ? getSpeedup(results.avgLatencyJs, results.avgLatencyWorker)
-                  : 'N/A'}
-              </span>
+            <div className="summary-item highlight">
+              <span className="summary-label">Raw Throughput</span>
+              <span className="summary-value success">{getWinnerLabel(results.winnerThroughput)}</span>
             </div>
             <div className="summary-item">
               <span className="summary-label">Total Updates</span>
@@ -698,7 +772,7 @@ export function BenchmarkRunner() {
           </div>
 
           <div className="benchmark-recommendation">
-            <strong>Recommendation:</strong> {getRecommendation(results.winner, results.pattern)}
+            <strong>Recommendation:</strong> {getRecommendation(results.winnerLatency, results.winnerThroughput, results.pattern)}
           </div>
         </div>
       )}
