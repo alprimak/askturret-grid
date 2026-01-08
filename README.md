@@ -8,7 +8,7 @@
 
 A high-performance React data grid that lets you pick the right engine for your workload. Three battle-tested architectures, one simple API.
 
-[Live Demo](https://grid.askturret.com/demo/) · [Documentation](https://alprimak.github.io/askturret-grid/) · [Benchmarks](https://grid.askturret.com/benchmarks/)
+[Live Demo](https://grid.askturret.com/demo/) · [Documentation](https://grid.askturret.com/getting-started/installation/) · [Benchmarks](https://grid.askturret.com/benchmarks/)
 
 ---
 
