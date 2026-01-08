@@ -224,6 +224,14 @@ export function BenchmarkRunner() {
     setError(null);
     setProgress('Generating test data...');
 
+    // Track benchmark start in PostHog
+    if (typeof window !== 'undefined' && (window as any).posthog) {
+      (window as any).posthog.capture('benchmark_started', {
+        pattern,
+        row_count: rowCount,
+      });
+    }
+
     await new Promise((r) => setTimeout(r, 50));
 
     try {
@@ -421,6 +429,20 @@ export function BenchmarkRunner() {
         winnerLatency,
         winnerThroughput,
       });
+
+      // Track benchmark completion in PostHog
+      if (typeof window !== 'undefined' && (window as any).posthog) {
+        (window as any).posthog.capture('benchmark_completed', {
+          pattern,
+          row_count: rowCount,
+          winner_latency: winnerLatency,
+          winner_throughput: winnerThroughput,
+          avg_latency_js: avgLatencyJs,
+          avg_latency_wasm: avgLatencyWasm,
+          avg_latency_worker: avgLatencyWorker,
+        });
+      }
+
       setProgress('');
     } catch (e) {
       console.error('Benchmark error:', e);
