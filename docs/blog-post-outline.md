@@ -246,4 +246,4 @@ High-frequency updates (>100/second)?
 - GitHub: https://github.com/alprimak/askturret-grid
 - Demo: https://grid.askturret.com/demo
 - Benchmarks: https://grid.askturret.com/benchmarks
-- Docs: https://alprimak.github.io/askturret-grid
+- Docs: https://grid.askturret.com/getting-started/installation/
