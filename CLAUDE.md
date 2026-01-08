@@ -260,9 +260,43 @@ The main askturret repo uses this package via file: dependency:
 ## User Preferences
 
 - Minimal co-author format: `Co-Authored-By: Claude <noreply@anthropic.com>`
-- User pushes commits manually
 - Arch Linux environment
 - MIT license for open source, considering commercial tier for enterprise features
+
+## Development Workflow (Definition of Done)
+
+**All changes must go through PRs.** Claude should work autonomously using this flow:
+
+```bash
+# 1. Create feature branch from main
+git checkout main && git pull
+git checkout -b feature/short-description
+
+# 2. Make changes, commit with co-author
+git add . && git commit -m "Description
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# 3. Push feature branch
+git push -u origin feature/short-description
+
+# 4. Create PR for user review
+gh pr create --title "Title" --body "## Summary
+- Change 1
+- Change 2
+
+## Test plan
+- [ ] Verified X
+- [ ] Tested Y"
+```
+
+**Claude handles steps 1-4 autonomously. User reviews and merges the PR.**
+
+Branch naming:
+- `feature/` - new functionality
+- `fix/` - bug fixes
+- `docs/` - documentation only
+- `refactor/` - code improvements
 
 ## CI/CD
 
