@@ -272,3 +272,25 @@ GitHub Actions workflow runs on push/PR:
 3. Tests (vitest)
 4. Build package
 5. Build demo (artifact uploaded)
+
+## Release Process
+
+**Important:** Always create a GitHub release to publish to npm. This keeps versions in sync.
+
+```bash
+# 1. Bump version in package.json
+npm version patch  # or minor/major
+
+# 2. Push the version commit and tag
+git push && git push --tags
+
+# 3. Create GitHub release (triggers npm publish automatically)
+gh release create v0.1.x --generate-notes
+```
+
+The `publish.yml` workflow runs on GitHub release creation and:
+1. Runs tests
+2. Builds the package
+3. Publishes to npm with provenance
+
+**Do NOT** publish directly via `npm publish` — this causes GitHub releases and npm versions to get out of sync.
